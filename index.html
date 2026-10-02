@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>AI Foundry — Ideas for a Brighter Tomorrow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="assets/logo.jpg" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="cur"></div>
+    <canvas id="fx"></canvas>
+    <div id="wipe"></div>
+    <button id="up" aria-label="Back to top">
+      <svg viewBox="0 0 64 64">
+        <circle
+          cx="32"
+          cy="32"
+          r="29"
+          fill="#000"
+          stroke="#262626"
+          stroke-width="3"
+        />
+        <circle
+          id="ring"
+          cx="32"
+          cy="32"
+          r="29"
+          fill="none"
+          stroke="#ff4d2e"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-dasharray="182.2"
+          stroke-dashoffset="182.2"
+          transform="rotate(-90 32 32)"
+        /></svg
+      ><span>↑</span>
+    </button>
+    <div id="bar"></div>
+    <div id="load">
+      <span class="mono">Igniting the foundry</span><b id="ct">000</b>
+    </div>
+    <nav>
+      <a href="#hero" class="mono">AI Foundry ◢</a>
+      <div class="links mono">
+        <a href="#events">Events</a><a href="#projects">Projects</a
+        ><a href="#collab">Collabs</a><a href="#patron">Patron</a
+        ><a href="#team">Team</a><a href="#members">Members</a
+        ><a href="#about">About</a><a href="#join" class="ac">Join ↗</a>
+      </div>
+    </nav>
+
+    <header id="hero">
+      <div class="gf"></div>
+      <div class="glow"></div>
+      <div class="scan"></div>
+      <canvas id="cv" style="z-index: 2"></canvas>
+      <div class="tl mono">
+        Est. <b>2026</b><br />Innovation club<br /><b
+          >Universal AI University</b
+        >
+      </div>
+      <div class="badge">
+        <svg viewBox="0 0 200 200">
+          <defs>
+            <path
+              id="rp"
+              d="M100,100 m-84,0 a84,84 0 1,1 168,0 a84,84 0 1,1 -168,0"
+            />
+          </defs>
+          <text
+            fill="#f3f1ec"
+            font-family="DM Mono,monospace"
+            font-size="11.5"
+            letter-spacing="3.2"
+          >
+            <textPath href="#rp">
+              DISCOVER ✦ BUILD ✦ INNOVATE ✦ IMPACT ✦
+            </textPath>
+          </text></svg
+        ><img src="assets/logo.jpg" alt="AI Foundry logo" />
+      </div>
+
+      <h1 class="sr">AI Foundry</h1>
+      <div class="hero-meta mono">
+        <span>Discover · Build · Innovate · <b>Impact</b></span
+        ><span>Ideas for a brighter tomorrow</span><span>↓ Scroll</span>
+      </div>
+    </header>
+
+    <div class="mq">
+      <div>
+        <span
+          >Problems → Prototypes → Impact ✦ Problems → Prototypes → Impact ✦ </span
+        ><span
+          >Problems → Prototypes → Impact ✦ Problems → Prototypes → Impact ✦
+        </span>
+      </div>
+    </div>
+
+    <section id="what">
+      <div id="hz">
+        <div class="st">
+          <div class="hd">
+            <span class="tag mono">01 — What we do</span>
+            <h2>Inside the <span class="ac">Foundry</span></h2>
+          </div>
+          <div id="trk"></div>
+          <div class="hzb"><i></i></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <span class="tag mono">02 — How we work</span>
+      <h2 class="rv">One idea.<br />Four <span class="ac">stages.</span></h2>
+      <div class="pipe" id="pipe"><div class="fill"></div></div>
+      <div class="grid g3 rv" style="margin-top: 10vh" id="mis"></div>
+    </section>
+
+    <div class="stats" id="stats">
+      <div><b data-n="4">0</b><span class="mono">Stages per project</span></div>
+      <div><b data-n="6">0</b><span class="mono">Core missions</span></div>
+      <div><b data-n="6">0</b><span class="mono">Ways to build</span></div>
+      <div><b data-n="100">0</b><span class="mono">% proof of work</span></div>
+    </div>
+
+    <section class="sec" id="events">
+      <span class="tag mono">03 — Events</span>
+      <h2 class="rv">Where we <span class="ac">ship</span></h2>
+      <div class="tabs mono" id="evtabs">
+        <button class="on" data-k="up">Upcoming</button
+        ><button data-k="past">Past</button>
+      </div>
+      <div id="evl"></div>
+      <p class="note mono">
+        Click any event for full details · sample entries, edit the EVENTS list
+        in the script.
+      </p>
+    </section>
+
+    <section class="sec" id="projects">
+      <span class="tag mono">04 — Projects &amp; Research</span>
+      <h2 class="rv">Forged in the <span class="ac">lab</span></h2>
+      <div class="pstat mono">
+        <span><b id="pc1">0</b>Ongoing</span
+        ><span><b id="pc2">0</b>Completed</span
+        ><span style="margin-left: auto; color: var(--mut)"
+          >Tap a card for the full story</span
+        >
+      </div>
+      <div class="tabs mono" id="ptabs">
+        <button class="on" data-k="on">Ongoing</button
+        ><button data-k="done">Completed</button>
+      </div>
+      <div class="pgrid" id="pgrid"></div>
+      <p class="note mono">
+        Sample entries — edit the PROJECTS list in js/data.js.
+      </p>
+    </section>
+
+    <section class="sec" id="collab" style="background: var(--bg2)">
+      <span class="tag mono">05 — Collaborations</span>
+      <h2 class="rv">Built <span class="ac">together</span></h2>
+      <div class="col" id="col"></div>
+      <p class="note mono">
+        Add partner names in the COLLABS list in the script.
+      </p>
+    </section>
+
+    <section class="sec" id="patron">
+      <span class="tag mono">06 — Our patron</span>
+      <div class="pat">
+        <div class="rv">
+          <div class="ph"><img id="pimg" alt="" /></div>
+        </div>
+        <blockquote class="rv" style="--d: 0.15s">
+          <div id="pq"></div>
+          <div class="sig">
+            <img id="ps" alt="signature" />
+            <div>
+              <b id="pn" style="font-size: 22px"></b
+              ><span class="mono ac" id="pr" style="display: block"></span>
+            </div>
+          </div>
+        </blockquote>
+      </div>
+    </section>
+
+    <section class="sec" id="team">
+      <span class="tag mono">07 — Lead team</span>
+      <h2 class="rv">The hands on <span class="ac">the hammer</span></h2>
+      <div class="lead" id="lead"></div>
+    </section>
+
+    <section class="sec" id="members" style="background: var(--bg2)">
+      <span class="tag mono">08 — Members</span>
+      <h2 class="rv">The <span class="ac">backbone</span></h2>
+      <div class="mem" id="mem"></div>
+      <p class="note mono">
+        Sample names — replace in the MEMBERS list in the script.
+      </p>
+    </section>
+
+    <section id="about">
+      <div id="man">
+        <div class="st">
+          <span class="tag mono">09 — Who we are</span>
+          <p id="mtxt"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" style="padding-top: 0">
+      <div class="vm">
+        <div class="rv">
+          <span class="tag mono">Vision</span>
+          <p>
+            To establish AI Foundry as a dynamic innovation hub that transforms
+            real-world problems into impactful AI-driven solutions by fostering
+            creativity, rapid prototyping, entrepreneurship, and technology-led
+            innovation for society and the university.
+          </p>
+        </div>
+        <div class="rv" style="--d: 0.15s">
+          <span class="tag mono">Why we exist</span>
+          <p>
+            Ideas are everywhere.
+            <span class="ac">Finished solutions are rare.</span> Membership here
+            is measured in work, not attendance — every member belongs to a
+            team, and every team is building something.
+          </p>
+        </div>
+      </div>
+      <div class="grid g3" id="why"></div>
+    </section>
+
+    <div id="md" role="dialog" aria-modal="true" aria-labelledby="mt">
+      <div class="mc">
+        <button class="mx" aria-label="Close">✕</button
+        ><span class="mono ac" id="mk"></span>
+        <h3 id="mt"></h3>
+        <div class="mm" id="mm"></div>
+        <p id="ml"></p>
+        <ul id="mh"></ul>
+        <a class="btn" id="mr" href="#">Register →</a>
+      </div>
+    </div>
+    <div id="jn" role="dialog" aria-modal="true" aria-labelledby="jt">
+      <button class="mx" id="jx" aria-label="Close">✕</button>
+      <div class="jw">
+        <div class="jl">
+          <span class="tag mono">Join the club</span>
+          <h2 id="jt">Join the <span class="ac">Foundry</span></h2>
+          <p>
+            Bring an idea, a skill, or just curiosity. Tell us about yourself
+            and attach your resume. We’ll get back to you with the next step.
+          </p>
+          <ul>
+            <li>Work on real problems, not just slides</li>
+            <li>Join a build squad with a mentor</li>
+            <li>Show your proof of work at Demo Day</li>
+          </ul>
+        </div>
+        <div class="jr">
+          <form id="jf" novalidate>
+            <div class="fl" data-f="fn">
+              <input id="fn" autocomplete="name" placeholder=" " /><label
+                for="fn"
+                >Full name</label
+              >
+              <div class="er"></div>
+            </div>
+            <div class="fl" data-f="fp">
+              <input
+                id="fp"
+                type="tel"
+                autocomplete="tel"
+                inputmode="tel"
+                placeholder=" "
+              /><label for="fp">Phone number</label>
+              <div class="er"></div>
+            </div>
+            <div class="fl" data-f="fe">
+              <input
+                id="fe"
+                type="email"
+                autocomplete="email"
+                placeholder=" "
+              /><label for="fe">Gmail / email</label>
+              <div class="er"></div>
+            </div>
+            <div class="fl" data-f="rf">
+              <label class="dz" id="dz" for="rf"
+                ><input id="rf" type="file" accept=".pdf,.doc,.docx" hidden />
+                <span class="dzt"
+                  ><b>Attach your resume</b
+                  ><small class="mono"
+                    >Drop a file here or click · PDF / DOC / DOCX · max 5
+                    MB</small
+                  ></span
+                >
+                <span class="dzf"
+                  ><b id="dn"></b
+                  ><button type="button" id="dr" class="mono">
+                    Remove
+                  </button></span
+                ></label
+              >
+              <div class="er"></div>
+            </div>
+            <div class="er" id="fo"></div>
+            <button class="btn" id="js" type="submit">
+              Send application →
+            </button>
+          </form>
+          <div id="ok">
+            <svg viewBox="0 0 52 52" width="84">
+              <circle
+                cx="26"
+                cy="26"
+                r="24"
+                fill="none"
+                stroke="#ff4d2e"
+                stroke-width="2"
+              />
+              <path
+                d="M14 27l8 8 16-17"
+                fill="none"
+                stroke="#ff4d2e"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <h3>You’re in the queue.</h3>
+            <p id="okm"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer>
+      <div class="big rv">
+        You arrive with an idea. <em>Leave with something that runs.</em>
+      </div>
+      <a class="btn" href="#join">Join AI Foundry →</a>
+      <div class="fb mono">
+        <span>AI Foundry Club · Universal AI University</span
+        ><span>Ideas for a brighter tomorrow</span
+        ><a href="#hero" id="top2" class="ac">Re-ignite ↑</a>
+      </div>
+    </footer>
+
+    <script src="js/data.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
