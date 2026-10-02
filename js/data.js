@@ -11,9 +11,9 @@ window.SITE_DATA = {
     EMAIL: "vidhayank.singh@universalai.in",
     FORM_ENDPOINT: "",
     DATA_URL: "",
-    CLUB_EMAIL: "your-club-email@gmail.com",
+    CLUB_EMAIL: "aifoundry0@gmail.com",
     SOCIAL: {
-      instagram: "https://www.instagram.com/",
+      instagram: "https://www.instagram.com/aifoundryuai?stkn=MTQzbDAyaHNoMTBpaw==",
       discord: "https://discord.gg/",
       linkedin: "https://www.linkedin.com/",
     },
