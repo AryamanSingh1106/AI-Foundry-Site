@@ -5,16 +5,24 @@
    To load this data from a server/database instead, see README.md
    ===================================================================== */
 window.SITE_DATA = {
-  /* Settings: EMAIL receives join requests (fallback). FORM_ENDPOINT = form-service URL. DATA_URL = JSON API URL (leave '' to use this file). */
+  /* Settings. CLUB_EMAIL = public contact email shown in the footer. SOCIAL = your Instagram / Discord / LinkedIn links (replace the placeholders).
+     EMAIL = where Join requests go (fallback). FORM_ENDPOINT = form-service URL. DATA_URL = JSON API URL (leave '' to use this file). */
   CONFIG: {
     EMAIL: "vidhayank.singh@universalai.in",
     FORM_ENDPOINT: "",
     DATA_URL: "",
+    CLUB_EMAIL: "your-club-email@gmail.com",
+    SOCIAL: {
+      instagram: "https://www.instagram.com/",
+      discord: "https://discord.gg/",
+      linkedin: "https://www.linkedin.com/",
+    },
   },
   /* Scroll-reveal sentence in 'Who we are'. Words wrapped in *stars* turn orange. */
   MANIFESTO:
     "A foundry is where raw material is shaped under *heat* into something of use. That is precisely our work with *ideas*. We begin with a *real problem* and leave with something that *runs*.",
-  /* k: 'up' (upcoming) or 'past'.  r: optional link (registration for upcoming / recap for past). */
+  /* k: 'up' (upcoming) or 'past'.  r: optional link.
+     PHOTOS: img = cover photo path (e.g. 'assets/events/launch.jpg'); gallery = list of extra photos shown in the detail card. Leave img '' for the default look. */
   EVENTS: [
     {
       k: "up",
@@ -29,6 +37,8 @@ window.SITE_DATA = {
         "Frame it with design thinking",
         "Form a squad and get a mentor",
       ],
+      img: "",
+      gallery: [],
     },
     {
       k: "up",
@@ -43,6 +53,8 @@ window.SITE_DATA = {
         "One-to-one mentor feedback",
         "No prior AI experience needed",
       ],
+      img: "",
+      gallery: [],
     },
     {
       k: "up",
@@ -57,6 +69,8 @@ window.SITE_DATA = {
         "Feedback from mentors",
         "Top projects enter incubation",
       ],
+      img: "",
+      gallery: [],
     },
     {
       k: "past",
@@ -71,6 +85,8 @@ window.SITE_DATA = {
         "Four-stage model introduced",
         "First members onboarded",
       ],
+      img: "",
+      gallery: [],
     },
     {
       k: "past",
@@ -85,76 +101,192 @@ window.SITE_DATA = {
         "Frame the problem",
         "Validate before building",
       ],
+      img: "",
+      gallery: [],
     },
   ],
-  /* real:true makes the name bright white; false shows it dimmed (placeholder look). */
+  /* Projects & research. k: 'on' | 'done'.  type: 'Project' | 'Research'.  st: stage 0-3 (ongoing).  p: progress % (ongoing).
+     tech: tags.  lead / d: shown in detail card.  hl: highlights.  r: optional link.  img: cover photo (e.g. 'assets/projects/chatbot.jpg').  gallery: extra photos. */
+  PROJECTS: [
+    {
+      k: "on",
+      type: "Project",
+      t: "Campus Assistant",
+      x: "An AI assistant that answers student questions on timetables, rules and campus services.",
+      l: "A conversational assistant trained on university documents so students get instant, reliable answers instead of searching notice boards and PDFs.",
+      st: 1,
+      p: 62,
+      tech: ["Python", "LLM", "RAG"],
+      lead: "Build Squad A",
+      d: "Started Jan 2026",
+      hl: [
+        "Document ingestion pipeline working",
+        "Pilot with one department",
+        "Next: feedback round and accuracy testing",
+      ],
+      r: "",
+      img: "",
+      gallery: [],
+    },
+    {
+      k: "on",
+      type: "Project",
+      t: "Smart Attendance Vision",
+      x: "Computer-vision attendance for classrooms, built to respect privacy.",
+      l: "Exploring on-device face matching so attendance takes seconds, with a focus on consent, accuracy and keeping data local.",
+      st: 1,
+      p: 40,
+      tech: ["OpenCV", "PyTorch"],
+      lead: "Build Squad B",
+      d: "Started Feb 2026",
+      hl: ["Prototype recognises enrolled faces", "Privacy review in progress"],
+      r: "",
+      img: "",
+      gallery: [],
+    },
+    {
+      k: "on",
+      type: "Research",
+      t: "Language AI for Local Dialects",
+      x: "Studying how well language models handle regional Indian languages and dialects.",
+      l: "A research track measuring where current language models fail on regional dialects, and which small datasets help most.",
+      st: 0,
+      p: 18,
+      tech: ["NLP", "Datasets"],
+      lead: "Research Cell",
+      d: "Started Mar 2026",
+      hl: ["Literature review underway", "Building a small evaluation set"],
+      r: "",
+      img: "",
+      gallery: [],
+    },
+    {
+      k: "done",
+      type: "Project",
+      t: "Problem Bank v1",
+      x: "The club's open list of real problems from campus, faculty and industry.",
+      l: "A searchable list of problems that members can pick up, which became the starting point for every build squad.",
+      tech: ["React", "Firebase"],
+      lead: "Core Team",
+      d: "Completed 2026",
+      hl: ["Live and used by build squads", "Feeds the Innovation Challenge"],
+      r: "",
+      img: "",
+      gallery: [],
+    },
+    {
+      k: "done",
+      type: "Project",
+      t: "Study Notes Summariser",
+      x: "Turns lecture notes into short revision summaries.",
+      l: "A small tool that condenses long notes into key points and quick-revision cards for exam time.",
+      tech: ["Transformers", "Python"],
+      lead: "Build Squad C",
+      d: "Completed 2026",
+      hl: ["Demoed at Demo Day", "Used by early testers"],
+      r: "",
+      img: "",
+      gallery: [],
+    },
+    {
+      k: "done",
+      type: "Research",
+      t: "Bias in Campus Datasets",
+      x: "A study of hidden bias in the small datasets student projects rely on.",
+      l: "A short research study that checked common student datasets for imbalance and documented simple fixes.",
+      tech: ["Statistics", "Research"],
+      lead: "Research Cell",
+      d: "Completed 2026",
+      hl: ["Findings written up", "Checklist shared with squads"],
+      r: "",
+      img: "",
+      gallery: [],
+    },
+  ],
+  /* real:true makes the name bright white; false shows it dimmed.  logo: optional image path (e.g. 'assets/collabs/partner.png') shown instead of the name. */
   COLLABS: [
     {
       name: "Universal AI University",
       real: true,
+      logo: "",
     },
     {
       name: "AI Centre of Excellence",
       real: true,
+      logo: "",
     },
     {
       name: "Partner name",
       real: false,
+      logo: "",
     },
     {
       name: "Partner name",
       real: false,
+      logo: "",
     },
     {
       name: "Partner name",
       real: false,
+      logo: "",
     },
     {
       name: "Partner name",
       real: false,
+      logo: "",
     },
     {
       name: "Partner name",
       real: false,
+      logo: "",
     },
     {
       name: "Partner name",
       real: false,
+      logo: "",
     },
   ],
-  /* Add as many members as you like. */
+  /* photo: optional image path (e.g. 'assets/members/riya.jpg'). Without it, the first letter of the name is shown. */
   MEMBERS: [
     {
       name: "Member Name",
       role: "Squad Lead",
+      photo: "",
     },
     {
       name: "Member Name",
       role: "Build Squad",
+      photo: "",
     },
     {
       name: "Member Name",
       role: "Build Squad",
+      photo: "",
     },
     {
       name: "Member Name",
       role: "Design",
+      photo: "",
     },
     {
       name: "Member Name",
       role: "Build Squad",
+      photo: "",
     },
     {
       name: "Member Name",
       role: "Research",
+      photo: "",
     },
     {
       name: "Member Name",
       role: "Build Squad",
+      photo: "",
     },
     {
       name: "Member Name",
       role: "Outreach",
+      photo: "",
     },
   ],
   /* Lead team: photos live in the assets/ folder. */
@@ -240,7 +372,7 @@ window.SITE_DATA = {
       text: "Beyond projects, we build people who can lead a team and carry an idea to the finish.",
     },
   ],
-  /* 'Inside the Foundry' cards (continue the scroll row) */
+  /* 'Inside the Foundry' cards */
   INS: [
     {
       title: "Problem Bank",
@@ -303,93 +435,6 @@ window.SITE_DATA = {
     {
       title: "Solving Campus Problems",
       text: "Intelligent solutions for real challenges within the university.",
-    },
-  ],
-  /* Projects & research. k: 'on' (ongoing) | 'done' (completed).  type: 'Project' | 'Research'.
-     st: current stage 0-3 (Discover, Build, Innovate, Impact) — ongoing only.  p: progress % — ongoing only.
-     tech: tags.  lead / d: shown in the detail card.  hl: highlights / outcomes.  r: optional link. */
-  PROJECTS: [
-    {
-      k: "on",
-      type: "Project",
-      t: "Campus Assistant",
-      x: "An AI assistant that answers student questions on timetables, rules and campus services.",
-      l: "A conversational assistant trained on university documents so students get instant, reliable answers instead of searching notice boards and PDFs.",
-      st: 1,
-      p: 62,
-      tech: ["Python", "LLM", "RAG"],
-      lead: "Build Squad A",
-      d: "Started Jan 2026",
-      hl: [
-        "Document ingestion pipeline working",
-        "Pilot with one department",
-        "Next: feedback round and accuracy testing",
-      ],
-      r: "",
-    },
-    {
-      k: "on",
-      type: "Project",
-      t: "Smart Attendance Vision",
-      x: "Computer-vision attendance for classrooms, built to respect privacy.",
-      l: "Exploring on-device face matching so attendance takes seconds, with a focus on consent, accuracy and keeping data local.",
-      st: 1,
-      p: 40,
-      tech: ["OpenCV", "PyTorch"],
-      lead: "Build Squad B",
-      d: "Started Feb 2026",
-      hl: ["Prototype recognises enrolled faces", "Privacy review in progress"],
-      r: "",
-    },
-    {
-      k: "on",
-      type: "Research",
-      t: "Language AI for Local Dialects",
-      x: "Studying how well language models handle regional Indian languages and dialects.",
-      l: "A research track measuring where current language models fail on regional dialects, and which small datasets help most.",
-      st: 0,
-      p: 18,
-      tech: ["NLP", "Datasets"],
-      lead: "Research Cell",
-      d: "Started Mar 2026",
-      hl: ["Literature review underway", "Building a small evaluation set"],
-      r: "",
-    },
-    {
-      k: "done",
-      type: "Project",
-      t: "Problem Bank v1",
-      x: "The club's open list of real problems from campus, faculty and industry.",
-      l: "A searchable list of problems that members can pick up, which became the starting point for every build squad.",
-      tech: ["React", "Firebase"],
-      lead: "Core Team",
-      d: "Completed 2026",
-      hl: ["Live and used by build squads", "Feeds the Innovation Challenge"],
-      r: "",
-    },
-    {
-      k: "done",
-      type: "Project",
-      t: "Study Notes Summariser",
-      x: "Turns lecture notes into short revision summaries.",
-      l: "A small tool that condenses long notes into key points and quick-revision cards for exam time.",
-      tech: ["Transformers", "Python"],
-      lead: "Build Squad C",
-      d: "Completed 2026",
-      hl: ["Demoed at Demo Day", "Used by early testers"],
-      r: "",
-    },
-    {
-      k: "done",
-      type: "Research",
-      t: "Bias in Campus Datasets",
-      x: "A study of hidden bias in the small datasets student projects rely on.",
-      l: "A short research study that checked common student datasets for imbalance and documented simple fixes.",
-      tech: ["Statistics", "Research"],
-      lead: "Research Cell",
-      d: "Completed 2026",
-      hl: ["Findings written up", "Checklist shared with squads"],
-      r: "",
     },
   ],
 };

@@ -1,5 +1,4 @@
 # AI Foundry — Club Website
-Website for ai foundry , techstack - just html, java, css. (very NORMAL and SIMPLE website)
 
 A frontend-only, animated, scroll-driven website for the AI Foundry club (Universal AI University).
 Plain HTML + CSS + JavaScript. No build step, no frameworks, no installs.
@@ -63,6 +62,26 @@ Upload the whole folder to Netlify (drag-and-drop), GitHub Pages, or Vercel. No 
 - Hero title: `size()` in `js/main.js` (the italic lean is the `-.22` in `setTransform`).
 - Reduce effects on slow devices: lower the particle step in `size()` or remove the `.gf` / `.scan` elements.
 
+## Adding photos
+Put image files in `assets/events/`, `assets/projects/`, `assets/members/`, `assets/collabs/` and point to them in `js/data.js`:
+- Events and projects: `"img": "assets/events/launch.jpg"` (cover, 16:9 works best) and optional `"gallery": ["assets/events/a.jpg", "assets/events/b.jpg"]` shown in the detail card.
+- Members: `"photo": "assets/members/riya.jpg"` (square-ish). Collaborations: `"logo": "assets/collabs/partner.png"`.
+Without a photo, a default orange pattern is shown. Tip: keep each photo under ~300 KB (resize to ~1200 px wide) so the page stays fast.
 
+## Footer: Follow + Contact
+In `js/data.js` → `CONFIG`: set `SOCIAL.instagram`, `SOCIAL.discord`, `SOCIAL.linkedin` (empty one = icon hidden) and `CLUB_EMAIL`.
 
-
+## Updating your existing GitHub repo (Windows)
+1. Unzip this package to a temporary folder, e.g. `C:\Users\YOU\Downloads\ai-foundry-site`.
+2. Copy the files over your cloned repo folder (this keeps `.git` and deletes nothing):
+```
+robocopy "C:\Users\YOU\Downloads\ai-foundry-site" "C:\Users\YOU\path\to\your-repo" /E /XD .git
+```
+3. Commit and push:
+```
+cd "C:\Users\YOU\path\to\your-repo"
+git add .
+git commit -m "Add projects, photos, join form, footer links"
+git push
+```
+Robocopy exit codes 0-7 mean success. Only add `/MIR` if you want files you removed from the package to be deleted in the repo too, and then ALWAYS keep `/XD .git`.
