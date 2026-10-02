@@ -616,7 +616,7 @@ body::after {
 .tabs {
   display: flex;
   gap: 10px;
-  margin: 40px 0 20px;
+  margin: 20px 0 40px;
 }
 .tabs button {
   font: inherit;
@@ -911,6 +911,9 @@ footer .big em {
     transform 1s cubic-bezier(0.2, 0.7, 0.2, 1),
     padding 0.4s,
     color 0.3s;
+}
+.ev.rv.in{
+  transform:none
 }
 .lead .ph,
 .pat .ph {

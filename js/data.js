@@ -8,7 +8,7 @@ window.SITE_DATA = {
   /* Settings. CLUB_EMAIL = public contact email shown in the footer. SOCIAL = your Instagram / Discord / LinkedIn links (replace the placeholders).
      EMAIL = where Join requests go (fallback). FORM_ENDPOINT = form-service URL. DATA_URL = JSON API URL (leave '' to use this file). */
   CONFIG: {
-    EMAIL: "vidhayank.singh@universalai.in",
+    EMAIL: "aifoundry0@gmail.com",
     FORM_ENDPOINT: "",
     DATA_URL: "",
     CLUB_EMAIL: "aifoundry0@gmail.com",
@@ -125,6 +125,25 @@ window.SITE_DATA = {
         "Next: feedback round and accuracy testing",
       ],
       r: "",
+      img: "",
+      gallery: [],
+    },
+    {
+      k: "on",
+      type: "Project",
+      t: "Campus Navigation System",
+      x: "A system that helps students navigate the campus easily and efficiently.",
+      l: "A system that helps students navigate the campus easily and efficiently using AI and machine learning.",
+      st: 1,
+      p: 62,
+      tech: ["Python", "LLM", "RAG", "Machine Learning"],
+      lead: "Build Squad B",
+      d: "Started Feb 2026",
+      hl: [
+        "System is working",
+        "Pilot with one department",
+        "Next: feedback round and accuracy testing",
+      ],
       img: "",
       gallery: [],
     },
