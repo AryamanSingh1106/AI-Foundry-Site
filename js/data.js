@@ -14,7 +14,7 @@ window.SITE_DATA = {
     CLUB_EMAIL: "aifoundry0@gmail.com",
     SOCIAL: {
       instagram: "https://www.instagram.com/aifoundryuai?stkn=MTQzbDAyaHNoMTBpaw==",
-      discord: "https://discord.gg/",
+      discord: "https://discord.gg/Uj2aYypew",
       linkedin: "https://www.linkedin.com/",
     },
   },
