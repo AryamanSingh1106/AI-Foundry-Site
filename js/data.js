@@ -9,8 +9,8 @@ window.SITE_DATA = {
      EMAIL = where Join requests go (fallback). FORM_ENDPOINT = form-service URL. DATA_URL = JSON API URL (leave '' to use this file). */
   CONFIG: {
     EMAIL: "aifoundry0@gmail.com",
-    FORM_ENDPOINT: "",
-    DATA_URL: "",
+    FORM_ENDPOINT: "http://127.0.0.1:8000/api/join",
+    DATA_URL: "http://127.0.0.1:8000/api/site",
     CLUB_EMAIL: "aifoundry0@gmail.com",
     SOCIAL: {
       instagram: "https://www.instagram.com/aifoundryuai?stkn=MTQzbDAyaHNoMTBpaw==",
