@@ -77,3 +77,16 @@ No admin panel yet: use Supabase **Table Editor**.
 1. Admin routes + login (Supabase Auth) if you want a proper panel.
 2. Email notification to the club inbox on each new application.
 3. Replace placeholder members / social links.
+
+## Speed: caching and keeping the server awake
+
+- `GET /api/site` is cached in memory (`app/cache.py`). After the first request, visitors get the answer instantly;
+  when it is older than 30s it is still served instantly and refreshed in the background.
+  **Edits you make in Supabase show up within ~30-60s** (refresh once more if you just edited).
+- Render's free tier **sleeps after ~15 min without traffic**, and the first request then takes 30-60s to wake it.
+  The website no longer waits for that (it shows instantly and updates when the server answers), but you can
+  stop the sleeping almost entirely with a free monitor:
+  1. Sign up at uptimerobot.com -> **Add New Monitor** -> type **HTTP(s)**.
+  2. URL: `https://ai-foundry-site.onrender.com/health`, interval **5 minutes**.
+- Tip: put the Render service in the **same region** as your Supabase project (Render -> Settings -> Region;
+  Supabase -> Project Settings -> General). Fewer miles = faster database calls.

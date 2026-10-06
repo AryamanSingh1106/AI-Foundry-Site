@@ -1,19 +1,47 @@
-/* AI FOUNDRY — main script. Content comes from js/data.js (or a remote JSON, see README). */
-async function loadSite() {
-  const base = window.SITE_DATA || {};
+/* AI FOUNDRY — main script.
+   Content shows instantly from js/data.js (or the last good API response cached in this browser),
+   then fresh data is fetched in the background and swapped in only if it differs. */
+const CACHE_KEY = "af:site:v1";
+function readCache() {
   try {
-    if (base.CONFIG && base.CONFIG.DATA_URL) {
-      const r = await fetch(base.CONFIG.DATA_URL);
-      if (!r.ok) throw new Error(r.status);
-      return { ...base, ...(await r.json()) };
-    }
-  } catch (e) {
-    console.warn("Remote data failed; using js/data.js", e);
+    return JSON.parse(localStorage.getItem(CACHE_KEY)) || null;
+  } catch {
+    return null;
   }
-  return base;
+}
+function writeCache(j) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(j));
+  } catch {}
+}
+function loadSite() {
+  const base = window.SITE_DATA || {};
+  const url = base.CONFIG && base.CONFIG.DATA_URL;
+  const initial = { ...base, ...(readCache() || {}) };
+  const fresh = url
+    ? (async () => {
+        /* generous timeout: a sleeping free-tier server can take ~60s to wake, and nobody is waiting on it */
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 75000);
+        try {
+          const r = await fetch(url, { signal: ctl.signal });
+          if (!r.ok) throw new Error(r.status);
+          const j = await r.json();
+          writeCache(j);
+          return { ...base, ...j };
+        } catch (e) {
+          console.warn("Remote data failed; keeping current content", e);
+          return null;
+        } finally {
+          clearTimeout(timer);
+        }
+      })()
+    : Promise.resolve(null);
+  return { initial, fresh };
 }
 (async () => {
-  const {
+  const { initial, fresh } = loadSite();
+  let {
     EVENTS,
     COLLABS,
     MEMBERS,
@@ -27,7 +55,16 @@ async function loadSite() {
     PIPE,
     MIS,
     PROJECTS,
-  } = await loadSite();
+  } = initial;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  /* the hero canvas draws with Inter 900 - wait for it (max 2.5s) so the particle text uses the right font */
+  const fontsReady = (
+    document.fonts && document.fonts.load
+      ? Promise.race([document.fonts.load("900 100px Inter"), sleep(2500)])
+      : Promise.resolve()
+  ).catch(() => {});
+  /* give the API a short head start (max 1.8s) so fresh content is usually in place before the loader lifts */
+  const firstData = Promise.race([fresh, sleep(1800)]);
 
   /* ===== EDIT YOUR CONTENT HERE ===== */
   /* k: 'up' | 'past'.  r: optional link (registration for upcoming, recap for past) */
@@ -56,18 +93,21 @@ async function loadSite() {
       (p) => `<div class="s"><h4>${p.title}</h4><p>${p.text}</p></div>`,
     ).join(""),
   );
-  $("#col").innerHTML = COLLABS.map(
-    (c, i) =>
-      `<div class="rv ${c.real ? "real" : ""}" style="--d:${(i % 4) * 0.09}s">${c.logo ? `<img src="${c.logo}" alt="${c.name}">` : c.name}</div>`,
-  ).join("");
-  $("#mem").innerHTML = MEMBERS.map(
-    (m, i) =>
-      `<div class="m rv" style="--d:${(i % 6) * 0.07}s"><div class="av">${m.photo ? `<img src="${m.photo}" alt="${m.name}" loading="lazy">` : m.name[0]}</div><b>${m.name}</b><small class="mono">${m.role}</small></div>`,
-  ).join("");
-  $("#lead").innerHTML = LEADERS.map(
-    (l, i) =>
-      `<div class="rv" style="--d:${i * 0.15}s"><div class="ph"><img src="${l.photo}" alt="${l.name}"></div><h3>${l.name}</h3><span class="mono ac">${l.role}</span><a href="mailto:${l.email}">${l.email}</a></div>`,
-  ).join("");
+  function renderPeople() {
+    $("#col").innerHTML = COLLABS.map(
+      (c, i) =>
+        `<div class="rv ${c.real ? "real" : ""}" style="--d:${(i % 4) * 0.09}s">${c.logo ? `<img src="${c.logo}" alt="${c.name}">` : c.name}</div>`,
+    ).join("");
+    $("#mem").innerHTML = MEMBERS.map(
+      (m, i) =>
+        `<div class="m rv" style="--d:${(i % 6) * 0.07}s"><div class="av">${m.photo ? `<img src="${m.photo}" alt="${m.name}" loading="lazy">` : m.name[0]}</div><b>${m.name}</b><small class="mono">${m.role}</small></div>`,
+    ).join("");
+    $("#lead").innerHTML = LEADERS.map(
+      (l, i) =>
+        `<div class="rv" style="--d:${i * 0.15}s"><div class="ph"><img src="${l.photo}" alt="${l.name}"></div><h3>${l.name}</h3><span class="mono ac">${l.role}</span><a href="mailto:${l.email}">${l.email}</a></div>`,
+    ).join("");
+  }
+  renderPeople();
   const md = $("#md");
   let lastF;
   function openEv(i) {
@@ -344,42 +384,53 @@ async function loadSite() {
       )
       .join("");
   }
-  $("#pimg").src = PATRON.photo;
-  $("#pimg").alt = PATRON.name;
-  $("#pq").innerHTML = PATRON.message
-    .map(
-      (x, i, a) =>
-        `<p${i === a.length - 1 ? ' class="ac"' : ""}>${i === 0 ? "“" : ""}${x}${i === a.length - 1 ? "”" : ""}</p>`,
-    )
-    .join("");
-  $("#pn").textContent = PATRON.name;
-  $("#pr").textContent = PATRON.role;
-  $("#ps").src = PATRON.signature;
-  evs("up");
+  function renderPatron() {
+    $("#pimg").src = PATRON.photo;
+    $("#pimg").alt = PATRON.name;
+    $("#pq").innerHTML = PATRON.message
+      .map(
+        (x, i, a) =>
+          `<p${i === a.length - 1 ? ' class="ac"' : ""}>${i === 0 ? "“" : ""}${x}${i === a.length - 1 ? "”" : ""}</p>`,
+      )
+      .join("");
+    $("#pn").textContent = PATRON.name;
+    $("#pr").textContent = PATRON.role;
+    $("#ps").src = PATRON.signature;
+  }
+  renderPatron();
+  let evK = "up",
+    pK = "on";
+  evs(evK);
   $$("#evtabs button").forEach(
     (b) =>
       (b.onclick = () => {
         $$("#evtabs button").forEach((x) => x.classList.toggle("on", x === b));
-        evs(b.dataset.k);
+        evK = b.dataset.k;
+        evs(evK);
       }),
   );
-  projs("on");
+  projs(pK);
   $$("#ptabs button").forEach(
     (b) =>
       (b.onclick = () => {
         $$("#ptabs button").forEach((x) => x.classList.toggle("on", x === b));
-        projs(b.dataset.k);
+        pK = b.dataset.k;
+        projs(pK);
       }),
   );
   /* manifesto words */
   const words = [];
-  $("#mtxt").innerHTML = MANIFESTO.split(" ")
-    .map((w) => {
-      const h = w.startsWith("*");
-      return `<i class="${h ? "hot" : ""}">${w.replace("*", "")}</i> `;
-    })
-    .join("");
-  $$("#mtxt i").forEach((i) => words.push(i));
+  function renderManifesto() {
+    words.length = 0;
+    $("#mtxt").innerHTML = MANIFESTO.split(" ")
+      .map((w) => {
+        const h = w.startsWith("*");
+        return `<i class="${h ? "hot" : ""}">${w.replace("*", "")}</i> `;
+      })
+      .join("");
+    $$("#mtxt i").forEach((i) => words.push(i));
+  }
+  renderManifesto();
   /* loader + hero */
   const ct = $("#ct");
   let n = 0;
@@ -388,7 +439,7 @@ async function loadSite() {
     if (n >= 100) {
       n = 100;
       clearInterval(iv);
-      setTimeout(() => {
+      Promise.all([fontsReady, firstData]).then(() => setTimeout(() => {
         $("#load").classList.add("go");
         t0 = performance.now() + 500;
         started = true;
@@ -397,7 +448,7 @@ async function loadSite() {
           s.style.transform = "none";
           s.style.opacity = 1;
         });
-      }, 300);
+      }, 300));
     }
     ct.textContent = String(n).padStart(3, "0");
   }, 40);
@@ -549,6 +600,7 @@ async function loadSite() {
         }
   }
   size();
+  fontsReady.then(size);
   let rz;
   addEventListener("resize", () => {
     clearTimeout(rz);
@@ -754,5 +806,28 @@ async function loadSite() {
     ring.style.strokeDashoffset =
       182.2 * (1 - sy / Math.max(1, document.body.scrollHeight - innerHeight));
   }
+  /* when fresh data arrives, re-render only if it differs from what is already on screen */
+  const renderData = () => {
+    renderPeople();
+    renderPatron();
+    renderManifesto();
+    evs(evK);
+    projs(pK);
+  };
+  const sig = (d) =>
+    JSON.stringify([d.EVENTS, d.PROJECTS, d.MEMBERS, d.LEADERS, d.COLLABS, d.PATRON, d.MANIFESTO]);
+  fresh.then((d) => {
+    if (!d) return;
+    const shown = { EVENTS, PROJECTS, MEMBERS, LEADERS, COLLABS, PATRON, MANIFESTO };
+    if (sig(d) === sig(shown)) return;
+    ({ EVENTS, PROJECTS, MEMBERS, LEADERS, COLLABS, PATRON, MANIFESTO } = d);
+    renderData();
+    watch();
+  });
   requestAnimationFrame(frame);
-})();
+})().catch((e) => {
+  /* never leave a visitor stuck on the loading screen */
+  console.error(e);
+  const l = document.getElementById("load");
+  if (l) l.classList.add("go");
+});

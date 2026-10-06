@@ -28,6 +28,7 @@ app.include_router(site.router, prefix="/api")
 app.include_router(join.router, prefix="/api")
 
 
-@app.get("/health")
+# GET and HEAD: uptime monitors (e.g. UptimeRobot) often use HEAD requests.
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {"ok": True}

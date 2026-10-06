@@ -49,6 +49,14 @@
     <div id="load">
       <span class="mono">Igniting the foundry</span><b id="ct">000</b>
     </div>
+    <noscript><style>#load{display:none}</style></noscript>
+    <script>
+      /* Failsafe: whatever happens (slow network, script error), never trap a visitor on the loading screen. */
+      setTimeout(function () {
+        var l = document.getElementById("load");
+        if (l) l.classList.add("go");
+      }, 7000);
+    </script>
     <nav>
       <a href="#hero" class="mono">AI Foundry ◢</a>
       <div class="links mono">
