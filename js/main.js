@@ -104,7 +104,7 @@ function loadSite() {
     ).join("");
     $("#lead").innerHTML = LEADERS.map(
       (l, i) =>
-        `<div class="rv" style="--d:${i * 0.15}s"><div class="ph"><img src="${l.photo}" alt="${l.name}"></div><h3>${l.name}</h3><span class="mono ac">${l.role}</span><a href="mailto:${l.email}">${l.email}</a></div>`,
+        `<div class="rv" style="--d:${i * 0.15}s"><div class="ph"><img src="${l.photo}" alt="${l.name}" loading="lazy" decoding="async"></div><h3>${l.name}</h3><span class="mono ac">${l.role}</span><a href="mailto:${l.email}">${l.email}</a></div>`,
     ).join("");
   }
   renderPeople();
@@ -503,22 +503,43 @@ function loadSite() {
         { threshold: 0.6 },
       ).observe(b),
     );
-  /* cursor + tilt glow */
+  /* ===== performance tiers =====
+     q0 = full effects | q1 = lighter hero canvas | q2 = "lite" (also drops the costliest CSS effects).
+     Starts from what the device looks like (touch / few cores / low memory / reduced-motion) and then adapts
+     to the REAL frame rate: if frames keep taking >32ms it steps down a tier and remembers that for the session. */
+  const root = document.documentElement;
+  const coarse = matchMedia("(hover: none)").matches;
+  const weak = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
+  let q = 0;
+  try {
+    q = +sessionStorage.getItem("af:q") || 0;
+  } catch {}
+  q = Math.max(
+    q,
+    coarse || weak ? 1 : 0,
+    matchMedia("(prefers-reduced-motion: reduce)").matches ? 2 : 0,
+  );
+  root.classList.toggle("lite", q >= 2);
+  const dprFor = () => (q === 0 ? Math.min(1.5, devicePixelRatio || 1) : 1);
+
+  /* cursor + pointer (pointermove only records; all DOM work happens once per frame in frame()) */
   const cur = $(".cur");
   let mx = innerWidth / 2,
     my = innerHeight / 2,
     cx = mx,
-    cy = my;
-  addEventListener("pointermove", (e) => {
-    mx = e.clientX;
-    my = e.clientY;
-    const c = e.target.closest && e.target.closest(".card,.pc");
-    if (c) {
-      const r = c.getBoundingClientRect();
-      c.style.setProperty("--mx", e.clientX - r.left + "px");
-      c.style.setProperty("--my", e.clientY - r.top + "px");
-    }
-  });
+    cy = my,
+    pmoved = false,
+    ptarget = null;
+  addEventListener(
+    "pointermove",
+    (e) => {
+      mx = e.clientX;
+      my = e.clientY;
+      pmoved = true;
+      ptarget = e.target;
+    },
+    { passive: true },
+  );
   document.addEventListener("pointerover", (e) => {
     const s = !!e.target.closest(".ph");
     cur.classList.toggle("sm", s);
@@ -530,21 +551,32 @@ function loadSite() {
   /* hero particle typography */
   const cv = $("#cv"),
     g = cv.getContext("2d"),
-    hero = $("#hero");
+    spot = $(".spot");
   let W,
     H,
     D = [],
     P = [],
     t0 = 0,
     started = false,
-    dpr = Math.min(2, devicePixelRatio || 1),
-    stp = 4;
-  function size() {
-    cv.width = Math.round(cv.offsetWidth * dpr);
-    cv.height = Math.round(cv.offsetHeight * dpr);
-    W = cv.width;
-    H = cv.height;
-    P = Array.from({ length: Math.min(120, (W / 14) | 0) }, () => ({
+    dpr = dprFor(),
+    stp = 4,
+    calm = false /* true = particles are at rest: skip redrawing until something changes */,
+    lastHeroSy = NaN,
+    lastHx = NaN,
+    lastHy = NaN;
+  function size(force) {
+    dpr = dprFor();
+    const nw = Math.round(cv.offsetWidth * dpr),
+      nh = Math.round(cv.offsetHeight * dpr);
+    /* mobile browsers fire "resize" when the URL bar hides/shows - don't rebuild everything for that */
+    if (!force && nw === W && nh === H) return;
+    cv.width = nw;
+    cv.height = nh;
+    W = nw;
+    H = nh;
+    calm = false;
+    const embers = [Math.min(120, (W / 14) | 0), Math.min(60, (W / 28) | 0), 0][q];
+    P = Array.from({ length: embers }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
       r: (Math.random() * 2 + 0.5) * dpr,
@@ -578,7 +610,8 @@ function loadSite() {
       c.fillText(s, 0, 0);
     });
     c.setTransform(1, 0, 0, 1, 0, 0);
-    stp = Math.max(3 * dpr, Math.round(fs / 46));
+    /* whole pixels only (a fractional step breaks the pixel lookup); coarser grid on lighter tiers */
+    stp = Math.round(Math.max(3 * dpr, fs / 46) * [1, 1.25, 1.6][q]);
     const d = c.getImageData(0, 0, W, H).data;
     D = [];
     for (let y = 0; y < H; y += stp)
@@ -600,22 +633,25 @@ function loadSite() {
         }
   }
   size();
-  fontsReady.then(size);
+  fontsReady.then(() => size(true));
   let rz;
   addEventListener("resize", () => {
     clearTimeout(rz);
-    rz = setTimeout(size, 200);
+    rz = setTimeout(() => {
+      size();
+      needMeasure = true;
+    }, 200);
   });
+  const B = [[], [], []],
+    AB = [[], [], [], []];
   function hero_(t) {
     g.globalCompositeOperation = "source-over";
     g.clearRect(0, 0, W, H);
-    g.globalCompositeOperation = "lighter";
-    const r = cv.getBoundingClientRect(),
-      lx = (mx - r.left) * dpr,
-      ly = (my - r.top) * dpr;
-    hero.style.setProperty("--sx", mx - r.left + "px");
-    hero.style.setProperty("--sy", my - r.top + "px");
-    g.fillStyle = "#ff7a2e";
+    g.globalCompositeOperation = q === 0 ? "lighter" : "source-over";
+    const lx = (mx - cvL) * dpr,
+      ly = (my - (cvT - scrollY)) * dpr;
+    /* ambient embers: sorted into 4 opacity levels -> 4 fills instead of one fill per ember */
+    for (let i = 0; i < 4; i++) AB[i].length = 0;
     for (const p of P) {
       p.y -= p.v;
       p.x += Math.sin(t / 900 + p.a * 9) * 0.35 * dpr;
@@ -623,25 +659,39 @@ function loadSite() {
         p.y = H + 10;
         p.x = Math.random() * W;
       }
-      g.globalAlpha = 0.2 + 0.6 * Math.abs(Math.sin(t / 700 + p.a * 6));
+      const a = 0.2 + 0.6 * Math.abs(Math.sin(t / 700 + p.a * 6));
+      AB[Math.min(3, (((a - 0.2) / 0.6) * 4) | 0)].push(p);
+    }
+    g.fillStyle = "#ff7a2e";
+    for (let i = 0; i < 4; i++) {
+      if (!AB[i].length) continue;
+      g.globalAlpha = 0.2 + (0.6 * (i + 0.5)) / 4;
       g.beginPath();
-      g.arc(p.x, p.y, p.r, 0, 6.283);
+      for (const p of AB[i]) {
+        g.moveTo(p.x + p.r, p.y);
+        g.arc(p.x, p.y, p.r, 0, 6.283);
+      }
       g.fill();
     }
     const k = cl(sy / innerHeight, 0, 1),
       R = 170 * dpr,
+      R2 = R * R,
+      thr = 4.84 * dpr * dpr,
       s = stp * 0.62,
-      B = [[], [], []];
+      kx = k * W * 0.3,
+      ky = k * k * H * 1.4;
+    B[0].length = B[1].length = B[2].length = 0;
+    let maxV2 = 0;
     for (const p of D) {
       if (!started || t < t0 + p.dl) continue;
-      const tx = p.tx + (p.z - 0.7) * k * W * 0.3,
-        ty = p.ty - k * k * H * p.z * 1.4;
+      const tx = p.tx + (p.z - 0.7) * kx,
+        ty = p.ty - ky * p.z;
       let fx = (tx - p.x) * 0.055,
         fy = (ty - p.y) * 0.055;
       const dx = p.x - lx,
         dy = p.y - ly,
         d2 = dx * dx + dy * dy;
-      if (d2 < R * R) {
+      if (d2 < R2) {
         const d = Math.sqrt(d2) || 1,
           f = (1 - d / R) ** 2 * 9 * dpr;
         fx += (dx / d) * f;
@@ -651,8 +701,9 @@ function loadSite() {
       p.vy = (p.vy + fy) * 0.84;
       p.x += p.vx;
       p.y += p.vy;
-      const sp = Math.hypot(p.vx, p.vy) / dpr;
-      B[sp > 2.2 ? 1 : p.w ? 2 : 0].push(p);
+      const v2 = p.vx * p.vx + p.vy * p.vy;
+      if (v2 > maxV2) maxV2 = v2;
+      B[v2 > thr ? 1 : p.w ? 2 : 0].push(p);
     }
     g.globalAlpha = 0.95;
     [
@@ -667,6 +718,8 @@ function loadSite() {
     g.fillStyle = "#ff4d2e";
     for (const p of B[0])
       if (p.w) g.fillRect((p.x - s) | 0, (p.y - s) | 0, s * 3, s * 3);
+    /* nothing is moving (no embers, every particle has started and is at rest) -> following frames can be skipped */
+    return P.length === 0 && started && t > t0 + 1300 && maxV2 < 4e-4;
   }
   /* main loop: smoothed scroll */
   const cl = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -680,30 +733,92 @@ function loadSite() {
     bar = $("#bar"),
     h1 = $("#hero h1"),
     glow = $(".glow");
-  const prog = (s, y) => {
-    const t = s.getBoundingClientRect().top + scrollY;
-    return cl((y - t) / Math.max(1, s.offsetHeight - innerHeight), 0, 1);
-  };
-  let vs = 0,
-    psy = 0,
-    going = false;
+  let going = false;
   const mq = $(".mq"),
     pns = $$(".pn"),
-    pxs = $$("h2"),
+    pxs = $$("h2").filter((e) => !e.closest("#jn,#md")),
     hzi = $(".hzb i"),
     up = $("#up"),
     ring = $("#ring"),
     fx = $("#fx"),
     fg = fx.getContext("2d"),
     wipe = $("#wipe");
-  function reform() {
-    for (const p of D) {
-      p.x = Math.random() * W;
-      p.y = H * 1.1 + Math.random() * H * 0.6;
-      p.vx = p.vy = 0;
+  /* ---- layout cache: measured once (and again on resize / content change), NOT every frame ---- */
+  let mtTop = 0,
+    mtH = 1,
+    hzTop = 0,
+    hzH = 1,
+    pipeTop = 0,
+    maxScroll = 1,
+    trkW = 0,
+    cvL = 0,
+    cvT = 0,
+    lastTx = 0,
+    cardX = [],
+    h2C = [],
+    h2H = [],
+    h2Off = [];
+  let needMeasure = true,
+    dirty = true,
+    settled = false;
+  function measure() {
+    const sc = scrollY;
+    mtTop = mt.getBoundingClientRect().top + sc;
+    mtH = mt.offsetHeight;
+    hzTop = hz.getBoundingClientRect().top + sc;
+    hzH = hz.offsetHeight;
+    pipeTop = pipe.getBoundingClientRect().top + sc;
+    maxScroll = Math.max(1, document.body.scrollHeight - innerHeight);
+    trkW = trk.scrollWidth;
+    const r = cv.getBoundingClientRect();
+    cvL = r.left;
+    cvT = r.top + sc;
+    cardX = pns.map((n) => {
+      const b = n.getBoundingClientRect();
+      return b.left + b.width / 2 - lastTx;
+    });
+    pxs.forEach((e, i) => {
+      const b = e.getBoundingClientRect();
+      h2C[i] = b.top + sc + b.height / 2 - (h2Off[i] || 0);
+      h2H[i] = b.height;
+    });
+  }
+  const prog = (top, h, y) => cl((y - top) / Math.max(1, h - innerHeight), 0, 1);
+  if (window.ResizeObserver)
+    new ResizeObserver(() => (needMeasure = true)).observe(document.body);
+  addEventListener("load", () => (needMeasure = true));
+  fontsReady.then(() => (needMeasure = true));
+  if (document.fonts && document.fonts.ready)
+    document.fonts.ready.then(() => (needMeasure = true));
+  function setQuality(n) {
+    q = n;
+    try {
+      sessionStorage.setItem("af:q", q);
+    } catch {}
+    root.classList.toggle("lite", q >= 2);
+    if (q >= 2) {
+      pns.forEach((e) => (e.style.transform = ""));
+      pxs.forEach((e, i) => {
+        e.style.translate = "";
+        h2Off[i] = 0;
+      });
+      mq.style.transform = "";
+      needMeasure = true;
     }
-    t0 = performance.now();
-    started = true;
+    size(true);
+  }
+  /* frame-rate governor: sustained slow frames -> drop one tier */
+  let lastT = 0,
+    slow = 0;
+  function govern(t) {
+    const dt = t - lastT;
+    lastT = t;
+    if (!started || q >= 2 || dt <= 0 || dt > 250) return; /* ignore loader phase + backgrounded tabs */
+    slow = dt > 32 ? slow + 1 : Math.max(0, slow - 2);
+    if (slow > 40) {
+      slow = 0;
+      setQuality(q + 1);
+    }
   }
   function launch() {
     if (going) return;
@@ -762,49 +877,129 @@ function loadSite() {
     e.preventDefault();
     launch();
   };
+  let vs = 0,
+    psy = 0,
+    lastSy = -1,
+    lastOn = -1,
+    lastPp = -1,
+    lastSk = 999,
+    upShown = null,
+    lastSpx = NaN,
+    lastSpy = NaN,
+    first = true;
+  const stepOn = [];
   function frame(t) {
     requestAnimationFrame(frame);
-    cx += (mx - cx) * 0.2;
-    cy += (my - cy) * 0.2;
-    cur.style.transform = `translate(${cx}px,${cy}px)`;
+    govern(t);
+    if (needMeasure) {
+      needMeasure = false;
+      measure();
+      dirty = true;
+    }
+    if (!coarse && (first || Math.abs(mx - cx) > 0.05 || Math.abs(my - cy) > 0.05)) {
+      cx += (mx - cx) * 0.2;
+      cy += (my - cy) * 0.2;
+      cur.style.transform = `translate(${cx}px,${cy}px)`;
+    }
+    if (pmoved) {
+      pmoved = false;
+      const c = ptarget && ptarget.closest && ptarget.closest(".card,.pc");
+      if (c) {
+        const r = c.getBoundingClientRect();
+        c.style.setProperty("--mx", mx - r.left + "px");
+        c.style.setProperty("--my", my - r.top + "px");
+      }
+    }
     sy += (scrollY - sy) * 0.12;
     if (Math.abs(scrollY - sy) < 0.1) sy = scrollY;
-    bar.style.transform = `scaleX(${sy / Math.max(1, document.body.scrollHeight - innerHeight)})`;
-    if (sy < innerHeight * 1.4) {
-      hero_(t);
-      const k = cl(sy / innerHeight, 0, 1);
-      h1.style.transform = `translateY(${k * -12}vh)`;
-      h1.style.opacity = 1 - k * 0.9;
-      glow.style.transform = `translate(-50%,${-50 + k * 30}%) scale(${1 + k * 0.4})`;
+    const justSettled = sy === scrollY && !settled;
+    settled = sy === scrollY;
+    const full = dirty || justSettled;
+    const scrolled = sy !== lastSy || full;
+    lastSy = sy;
+    const heroOn = sy < innerHeight * 1.08;
+    if (heroOn) {
+      if (!calm || sy !== lastHeroSy || mx !== lastHx || my !== lastHy) {
+        calm = hero_(t);
+        lastHeroSy = sy;
+        lastHx = mx;
+        lastHy = my;
+      }
+      const spx = mx - cvL,
+        spy = my - (cvT - scrollY);
+      if (spx !== lastSpx || spy !== lastSpy) {
+        lastSpx = spx;
+        lastSpy = spy;
+        spot.style.transform = `translate3d(${spx - 500}px,${spy - 500}px,0)`;
+      }
     }
-    const p = prog(mt, sy),
-      on = Math.floor(cl(p * 1.25, 0, 1) * words.length);
-    words.forEach((w, i) => w.classList.toggle("on", i < on));
-    const q = prog(hz, sy);
-    trk.style.transform = `translateX(${-q * (trk.scrollWidth - innerWidth + 0)}px)`;
-    const r = pipe.getBoundingClientRect(),
-      pp = cl((innerHeight * 0.85 - r.top) / (innerHeight * 0.5), 0, 1);
-    fill.style.transform = `scaleX(${pp})`;
-    steps.forEach((s, i) =>
-      s.classList.toggle("on", pp > i / steps.length + 0.02),
-    );
+    if (scrolled) {
+      const k = cl(sy / innerHeight, 0, 1);
+      bar.style.transform = `scaleX(${sy / maxScroll})`;
+      ring.style.strokeDashoffset = 182.2 * (1 - sy / maxScroll);
+      const show = sy > innerHeight * 0.8;
+      if (show !== upShown) {
+        upShown = show;
+        up.classList.toggle("show", show);
+      }
+      if (heroOn || full) {
+        h1.style.transform = `translateY(${k * -12}vh)`;
+        h1.style.opacity = 1 - k * 0.9;
+        glow.style.transform = `translate(-50%,${-50 + k * 30}%) scale(${1 + k * 0.4})`;
+      }
+      const on = Math.floor(cl(prog(mtTop, mtH, sy) * 1.25, 0, 1) * words.length);
+      if (on !== lastOn) {
+        lastOn = on;
+        words.forEach((w, i) => w.classList.toggle("on", i < on));
+      }
+      if (full || (sy > hzTop - innerHeight * 1.2 && sy < hzTop + hzH + innerHeight * 0.2)) {
+        const qh = prog(hzTop, hzH, sy);
+        lastTx = -qh * (trkW - innerWidth);
+        trk.style.transform = `translateX(${lastTx}px)`;
+        hzi.style.transform = `scaleX(${qh})`;
+        if (q < 2)
+          for (let i = 0; i < pns.length; i++) {
+            const c = (cardX[i] + lastTx - innerWidth / 2) / innerWidth;
+            if (full || Math.abs(c) < 1.3)
+              pns[i].style.transform = `perspective(1200px) rotateY(${c * -16}deg) scale(${1 - Math.min(0.2, Math.abs(c) * 0.14)})`;
+          }
+      }
+      const pp = cl((innerHeight * 0.85 - (pipeTop - scrollY)) / (innerHeight * 0.5), 0, 1);
+      if (pp !== lastPp) {
+        lastPp = pp;
+        fill.style.transform = `scaleX(${pp})`;
+        steps.forEach((s, i) => {
+          const v = pp > i / steps.length + 0.02;
+          if (v !== stepOn[i]) {
+            stepOn[i] = v;
+            s.classList.toggle("on", v);
+          }
+        });
+      }
+      if (q < 2)
+        for (let i = 0; i < pxs.length; i++) {
+          const vc = h2C[i] - scrollY - innerHeight / 2;
+          if (Math.abs(vc) < innerHeight / 2 + h2H[i] / 2 + 200) {
+            const o = -vc * 0.0826;
+            if (Math.abs(o - (h2Off[i] || 0)) > 0.15) {
+              h2Off[i] = o;
+              pxs[i].style.translate = `0 ${o}px`;
+            }
+          }
+        }
+    }
+    /* marquee skew follows scroll speed; only touch the DOM when the angle actually changes */
     vs += (sy - psy - vs) * 0.12;
     psy = sy;
-    mq.style.transform = `skewX(${cl(-vs * 0.35, -9, 9)}deg)`;
-    hzi.style.transform = `scaleX(${q})`;
-    pns.forEach((n) => {
-      const r = n.getBoundingClientRect(),
-        c = (r.left + r.width / 2 - innerWidth / 2) / innerWidth;
-      n.style.transform = `perspective(1200px) rotateY(${c * -16}deg) scale(${1 - Math.min(0.2, Math.abs(c) * 0.14)})`;
-    });
-    pxs.forEach((e) => {
-      const r = e.getBoundingClientRect();
-      if (r.bottom > -200 && r.top < innerHeight + 200)
-        e.style.translate = `0 ${-(r.top + r.height / 2 - innerHeight / 2) * 0.09}px`;
-    });
-    up.classList.toggle("show", sy > innerHeight * 0.8);
-    ring.style.strokeDashoffset =
-      182.2 * (1 - sy / Math.max(1, document.body.scrollHeight - innerHeight));
+    if (q < 2) {
+      const sk = cl(-vs * 0.35, -9, 9);
+      if (Math.abs(sk - lastSk) > 0.01) {
+        lastSk = sk;
+        mq.style.transform = `skewX(${sk}deg)`;
+      }
+    }
+    dirty = false;
+    first = false;
   }
   /* when fresh data arrives, re-render only if it differs from what is already on screen */
   const renderData = () => {
@@ -823,6 +1018,8 @@ function loadSite() {
     ({ EVENTS, PROJECTS, MEMBERS, LEADERS, COLLABS, PATRON, MANIFESTO } = d);
     renderData();
     watch();
+    lastOn = -1;
+    needMeasure = true;
   });
   requestAnimationFrame(frame);
 })().catch((e) => {

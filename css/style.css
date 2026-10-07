@@ -187,7 +187,6 @@ nav a:hover {
   left: 50%;
   top: 60%;
   transform: translate(-50%, -50%);
-  filter: blur(30px);
 }
 #hero h1 {
   position: relative;
@@ -255,17 +254,21 @@ nav a:hover {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
-#hero::before {
-  content: "";
+.spot {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
+  width: 1000px;
+  height: 1000px;
   z-index: 1;
   pointer-events: none;
   background: radial-gradient(
-    500px circle at var(--sx, 50%) var(--sy, 50%),
+    500px circle at 50% 50%,
     rgba(255, 77, 46, 0.16),
     transparent 70%
   );
+  transform: translate3d(-500px, -500px, 0);
+  will-change: transform;
 }
 .gf {
   position: absolute;
@@ -273,20 +276,29 @@ nav a:hover {
   right: -50%;
   bottom: -12%;
   height: 50%;
+  overflow: hidden;
+  transform: perspective(420px) rotateX(64deg);
+  -webkit-mask: linear-gradient(to top, #000, transparent 80%);
+  mask: linear-gradient(to top, #000, transparent 80%);
+}
+/* the lines live on a pseudo-element 64px taller than the floor, slid down one tile (64px) per loop = seamless */
+.gf::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -64px;
+  bottom: 0;
   background:
     linear-gradient(rgba(255, 77, 46, 0.35) 1px, transparent 1px) 0 0/100% 64px,
     linear-gradient(90deg, rgba(255, 77, 46, 0.25) 1px, transparent 1px) 0
       0/90px 100%;
-  transform: perspective(420px) rotateX(64deg);
-  -webkit-mask: linear-gradient(to top, #000, transparent 80%);
-  mask: linear-gradient(to top, #000, transparent 80%);
   animation: gf 2.4s linear infinite;
+  will-change: transform;
 }
 @keyframes gf {
   to {
-    background-position:
-      0 64px,
-      0 0;
+    transform: translateY(64px);
   }
 }
 .scan {
@@ -296,16 +308,18 @@ nav a:hover {
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--ac), transparent);
   opacity: 0.5;
+  top: 8%;
   animation: scan 6s ease-in-out infinite;
+  will-change: transform;
   z-index: 2;
 }
 @keyframes scan {
   0%,
   100% {
-    top: 8%;
+    transform: translateY(0);
   }
   50% {
-    top: 78%;
+    transform: translateY(max(70vh, 434px));
   }
 }
 .tl {
@@ -1048,12 +1062,19 @@ h2 {
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.4s;
+  transition:
+    opacity 0.4s,
+    visibility 0s 0.4s;
 }
 #md.on {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
+  transition:
+    opacity 0.4s,
+    visibility 0s;
 }
 .mc {
   width: min(720px, 100%);
@@ -1808,4 +1829,21 @@ h2 {
 }
 footer .fb {
   margin-top: 8vh;
+}
+
+/* ---- "lite" tier: switched on by main.js when the device can't hold ~30fps (or prefers reduced motion) ---- */
+html.lite body::after {
+  display: none;
+}
+html.lite nav,
+html.lite .cur {
+  mix-blend-mode: normal;
+}
+html.lite .scan,
+html.lite .gf::before {
+  animation: none;
+}
+html.lite h2,
+html.lite .pn {
+  will-change: auto;
 }
