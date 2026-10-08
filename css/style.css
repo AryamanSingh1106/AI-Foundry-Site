@@ -1847,3 +1847,12 @@ html.lite h2,
 html.lite .pn {
   will-change: auto;
 }
+
+/* ---- "mid" tier (q1+): drop the effects that force the GPU to re-blend / re-mask the whole screen every frame ---- */
+html.mid nav,
+html.mid .cur {
+  mix-blend-mode: normal;
+}
+html.mid .gf::before {
+  animation: none;
+}

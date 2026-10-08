@@ -504,23 +504,41 @@ function loadSite() {
       ).observe(b),
     );
   /* ===== performance tiers =====
-     q0 = full effects | q1 = lighter hero canvas | q2 = "lite" (also drops the costliest CSS effects).
-     Starts from what the device looks like (touch / few cores / low memory / reduced-motion) and then adapts
-     to the REAL frame rate: if frames keep taking >32ms it steps down a tier and remembers that for the session. */
+     q0 = full effects | q1 = lighter hero + no blend modes / static grid floor | q2 = "lite" (also no noise, tilt, parallax, embers).
+     Starts from what the device looks like (GPU, cores, memory, touch, reduced-motion) and then adapts to the REAL
+     frame rate: if the page keeps running slower than ~45fps it steps down a tier and remembers it for the session.
+     Debug helpers: add ?perf to the URL for a live overlay, ?q=0|1|2 to force a tier. */
   const root = document.documentElement;
+  const params = new URLSearchParams(location.search);
+  const forced = params.has("q") ? Math.max(0, Math.min(2, +params.get("q") || 0)) : null;
   const coarse = matchMedia("(hover: none)").matches;
   const weak = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
+  /* which graphics path is the browser really using? (hardware acceleration off / blocklisted GPU => software rendering) */
+  let renderer = "unknown";
+  try {
+    const gl = document.createElement("canvas").getContext("webgl");
+    if (gl) {
+      const ext = gl.getExtension("WEBGL_debug_renderer_info");
+      renderer = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : "webgl (renderer hidden)";
+      const lose = gl.getExtension("WEBGL_lose_context");
+      if (lose) lose.loseContext();
+    } else renderer = "no webgl";
+  } catch {}
+  const software = /swiftshader|llvmpipe|basic render|software/i.test(renderer);
+  const igpu = /intel.*\b(uhd|hd) graphics/i.test(renderer);
   let q = 0;
   try {
     q = +sessionStorage.getItem("af:q") || 0;
   } catch {}
   q = Math.max(
     q,
-    coarse || weak ? 1 : 0,
-    matchMedia("(prefers-reduced-motion: reduce)").matches ? 2 : 0,
+    coarse || weak || igpu ? 1 : 0,
+    software || matchMedia("(prefers-reduced-motion: reduce)").matches ? 2 : 0,
   );
+  if (forced !== null) q = forced;
+  root.classList.toggle("mid", q >= 1);
   root.classList.toggle("lite", q >= 2);
-  const dprFor = () => (q === 0 ? Math.min(1.5, devicePixelRatio || 1) : 1);
+  const dprFor = () => (q === 0 ? Math.min(1.25, devicePixelRatio || 1) : 1);
 
   /* cursor + pointer (pointermove only records; all DOM work happens once per frame in frame()) */
   const cur = $(".cur");
@@ -586,7 +604,7 @@ function loadSite() {
     const o = document.createElement("canvas");
     o.width = W;
     o.height = H;
-    const c = o.getContext("2d");
+    const c = o.getContext("2d", { willReadFrequently: true });
     let fs = Math.min(W / 4.2, H * 0.34);
     const F = (s) => {
       c.font = `900 ${s}px Inter,Arial,sans-serif`;
@@ -795,6 +813,7 @@ function loadSite() {
     try {
       sessionStorage.setItem("af:q", q);
     } catch {}
+    root.classList.toggle("mid", q >= 1);
     root.classList.toggle("lite", q >= 2);
     if (q >= 2) {
       pns.forEach((e) => (e.style.transform = ""));
@@ -807,16 +826,26 @@ function loadSite() {
     }
     size(true);
   }
-  /* frame-rate governor: sustained slow frames -> drop one tier */
+  /* frame-rate governor: if the AVERAGE frame time stays above ~20ms (<50fps) for about a second, drop one tier.
+     (a moving average, so a laptop that alternates 16ms/33ms frames is caught, while a single hitch is not) */
   let lastT = 0,
-    slow = 0;
+    ema = 16.7,
+    slow = 0,
+    settle = 0;
   function govern(t) {
     const dt = t - lastT;
     lastT = t;
-    if (!started || q >= 2 || dt <= 0 || dt > 250) return; /* ignore loader phase + backgrounded tabs */
-    slow = dt > 32 ? slow + 1 : Math.max(0, slow - 2);
+    if (forced !== null || !started || q >= 2 || dt <= 0 || dt > 250) return; /* ignore loader phase + backgrounded tabs */
+    if (settle > 0) {
+      settle--; /* let a tier change settle (rebuild hitch, GC) before judging again */
+      return;
+    }
+    ema = ema * 0.97 + Math.min(dt, 100) * 0.03;
+    slow = ema > 20 ? slow + 1 : 0;
     if (slow > 40) {
       slow = 0;
+      ema = 16.7;
+      settle = 20;
       setQuality(q + 1);
     }
   }
@@ -877,6 +906,33 @@ function loadSite() {
     e.preventDefault();
     launch();
   };
+  let perfTick = null;
+  if (params.has("perf")) {
+    const box = document.createElement("pre");
+    box.style.cssText =
+      "position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:8px 10px;font:11px/1.5 monospace;color:#9f9;background:rgba(0,0,0,.82);border:1px solid #333;pointer-events:none;white-space:pre";
+    document.body.appendChild(box);
+    let n = 0,
+      t1 = performance.now();
+    perfTick = () => n++;
+    const ua = navigator.userAgent;
+    const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : "other";
+    setInterval(() => {
+      const now = performance.now(),
+        fps = (n * 1000) / (now - t1);
+      n = 0;
+      t1 = now;
+      box.textContent = [
+        `fps       ${fps.toFixed(0)}`,
+        `tier      q${q}${forced !== null ? " (forced)" : ""}   avg frame ${ema.toFixed(1)}ms`,
+        `canvas    ${W}x${H}  dpr ${dpr}`,
+        `particles ${D.length}  embers ${P.length}`,
+        `gpu       ${renderer}${software ? "  <-- SOFTWARE" : ""}`,
+        `browser   ${browser}   cores ${navigator.hardwareConcurrency}  mem ${navigator.deviceMemory || "?"}GB`,
+        `viewport  ${innerWidth}x${innerHeight}  screen dpr ${devicePixelRatio}`,
+      ].join("\n");
+    }, 1000);
+  }
   let vs = 0,
     psy = 0,
     lastSy = -1,
@@ -890,6 +946,7 @@ function loadSite() {
   const stepOn = [];
   function frame(t) {
     requestAnimationFrame(frame);
+    if (perfTick) perfTick();
     govern(t);
     if (needMeasure) {
       needMeasure = false;
