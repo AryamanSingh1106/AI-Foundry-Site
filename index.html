@@ -14,6 +14,7 @@
       rel="stylesheet"
     />
     <link rel="icon" href="assets/logo.jpg" />
+    <link rel="preload" as="image" href="assets/logo.jpg" />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
@@ -46,8 +47,34 @@
       ><span>↑</span>
     </button>
     <div id="bar"></div>
-    <div id="load">
-      <span class="mono">Igniting the foundry</span><b id="ct">000</b>
+    <div id="load" aria-label="Loading AI Foundry">
+      <svg class="ld-svg" id="ldsvg" aria-hidden="true">
+        <defs>
+          <linearGradient id="ldShade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2b2b2b" />
+            <stop offset="1" stop-color="#0c0c0c" />
+          </linearGradient>
+          <linearGradient id="ldCone" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffb36b" stop-opacity=".5" />
+            <stop offset="1" stop-color="#ff4d2e" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path id="ldcord" class="ld-cord" d="" />
+        <g id="ldlamp">
+          <polygon id="ldcone" points="" fill="url(#ldCone)" opacity="0" />
+          <rect class="ld-lampcap" x="-7" y="0" width="14" height="14" rx="3" />
+          <path class="ld-shade" d="M-13 14 L13 14 L60 78 L-60 78 Z" fill="url(#ldShade)" />
+          <ellipse class="ld-rim" cx="0" cy="78" rx="60" ry="6" />
+          <ellipse id="ldglowrim" cx="0" cy="78" rx="54" ry="4.2" fill="#ffc98a" opacity="0" />
+          <circle id="ldbulb" cx="0" cy="81" r="10" fill="#ffe7bd" opacity="0" />
+        </g>
+      </svg>
+      <div class="ld-glow" id="ldglow" aria-hidden="true"></div>
+      <div class="ld-disc" id="lddisc" aria-hidden="true">
+        <img src="assets/logo.jpg" alt="" decoding="async" />
+      </div>
+      <span class="ld-cap mono" id="ldcap">Igniting the foundry</span>
+      <button type="button" class="ld-skip mono" id="ldskip" aria-label="Skip intro">Skip</button>
     </div>
     <noscript><style>#load{display:none}</style></noscript>
     <script>
@@ -55,7 +82,7 @@
       setTimeout(function () {
         var l = document.getElementById("load");
         if (l) l.classList.add("go");
-      }, 7000);
+      }, 9000);
     </script>
     <nav>
       <a href="#hero" class="mono">AI Foundry ◢</a>

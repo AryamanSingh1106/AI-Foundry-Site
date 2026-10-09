@@ -39,6 +39,64 @@ function loadSite() {
     : Promise.resolve(null);
   return { initial, fresh };
 }
+/* ===== lamp physics (pure functions, no DOM) =====
+   A lamp falls on an elastic cord: free fall while the cord is slack, then the cord snaps taut, stretches, the lamp
+   bounces once or twice and sways like a pendulum until it settles. Lengths scale with the viewport, times do not,
+   so the drop feels the same on a phone and a desktop. */
+function createLamp(W, H, P = {}) {
+  const s = Math.max(0.45, Math.min(1.25, Math.min(H / 900, W / 520 + 0.2)));
+  const prm = { g: 2200, k: 1000, cd: 34, air: 3.0, vx0: 190, ka: 170, ca: 9, ...P };
+  const ax = W / 2,
+    ay = -200 * s /* the cord hangs from above the screen */,
+    yRest = Math.max(H * 0.28, 150 * s) /* where the lamp ends up */,
+    L0 = yRest - ay /* cord length at rest */;
+  const L = { s, ax, ay, yRest, L0, x: ax, y: -120 * s, vx: prm.vx0 * s, vy: 0, ang: 0, angv: 0, taut: false, snaps: [], t: 0, maxStretch: 0 };
+  L.step = function (dt) {
+    let fx = 0,
+      fy = prm.g * s;
+    const dx = L.x - ax,
+      dy = L.y - ay,
+      d = Math.hypot(dx, dy);
+    if (d > L0) {
+      const nx = dx / d,
+        ny = dy / d,
+        ext = d - L0,
+        vr = L.vx * nx + L.vy * ny;
+      const T = Math.max(0, prm.k * ext + prm.cd * vr); /* a cord can pull, never push */
+      fx -= T * nx;
+      fy -= T * ny;
+      if (ext > L.maxStretch) L.maxStretch = ext;
+      if (!L.taut) {
+        L.taut = true;
+        if (vr > 120 * s) L.snaps.push({ t: L.t, v: vr });
+      }
+    } else L.taut = false;
+    fx -= prm.air * L.vx; /* sideways drag damps the sway */
+    L.vx += fx * dt;
+    L.vy += fy * dt;
+    L.x += L.vx * dt;
+    L.y += L.vy * dt;
+    const a = Math.atan2(L.x - ax, L.y - ay); /* the shade follows the cord direction with its own small lag */
+    L.angv += (-prm.ka * (L.ang - a) - prm.ca * L.angv) * dt;
+    L.ang += L.angv * dt;
+    L.t += dt;
+  };
+  return L;
+}
+/* light intensity 0..1 during the flicker (ms): three soft dips, never a full black<->white strobe */
+const FLICKER = [[0, 0], [70, 0.5], [150, 0.1], [260, 0.1], [330, 0.85], [430, 0.2], [520, 0.2], [600, 0.6], [700, 0.35], [800, 1]];
+function flickerAt(ms) {
+  if (ms <= 0) return 0;
+  if (ms >= 800) return 1;
+  for (let i = 1; i < FLICKER.length; i++)
+    if (ms <= FLICKER[i][0]) {
+      const [t0, v0] = FLICKER[i - 1],
+        [t1, v1] = FLICKER[i];
+      return v0 + ((v1 - v0) * (ms - t0)) / (t1 - t0);
+    }
+  return 1;
+}
+/* ===== end lamp physics ===== */
 (async () => {
   const { initial, fresh } = loadSite();
   let {
@@ -431,27 +489,244 @@ function loadSite() {
     $$("#mtxt i").forEach((i) => words.push(i));
   }
   renderManifesto();
-  /* loader + hero */
-  const ct = $("#ct");
-  let n = 0;
-  const iv = setInterval(() => {
-    n += Math.ceil(Math.random() * 7);
-    if (n >= 100) {
-      n = 100;
-      clearInterval(iv);
-      Promise.all([fontsReady, firstData]).then(() => setTimeout(() => {
-        $("#load").classList.add("go");
-        t0 = performance.now() + 500;
-        started = true;
-        $$("#hero h1 span.l1,#hero h1 span.l2").forEach((s, i) => {
-          s.style.transition = `transform 1.2s cubic-bezier(.2,.8,.2,1) ${0.5 + i * 0.15}s,opacity .8s ${0.5 + i * 0.15}s`;
-          s.style.transform = "none";
-          s.style.opacity = 1;
-        });
-      }, 300));
+  /* ===== intro: the hanging lamp =====
+     A lamp drops on its cord (snaps taut, stretches, bounces, sways), settles, flickers on and lights the logo; the logo
+     glides to its place in the hero badge and the page is revealed in a growing circle around it.
+     Repeat visits in a session get a short version. Debug: ?replay plays it again, ?slowmo plays it 3x slower. */
+  let introBusy = true;
+  const load = $("#load");
+  const startHero = () => {
+    t0 = performance.now() + 250;
+    started = true;
+  };
+  function intro() {
+    const sp = new URLSearchParams(location.search);
+    /* a returning visitor already has this browser's cached content on screen: don't hold the intro for fresh data */
+    const gate = readCache() ? fontsReady.then(() => {}) : Promise.all([fontsReady, firstData]);
+    const el = {
+      cord: $("#ldcord"), lamp: $("#ldlamp"), cone: $("#ldcone"), rim: $("#ldglowrim"), bulb: $("#ldbulb"),
+      glow: $("#ldglow"), disc: $("#lddisc"), cap: $("#ldcap"), skip: $("#ldskip"),
+    };
+    if (!load || !el.lamp || !el.disc) {
+      /* old cached HTML without the lamp markup: just open the page */
+      gate.then(() => {
+        startHero();
+        introBusy = false;
+        if (load) load.classList.add("go");
+      });
+      return;
     }
-    ct.textContent = String(n).padStart(3, "0");
-  }, 40);
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem("af:intro") === "1";
+      sessionStorage.setItem("af:intro", "1");
+    } catch {}
+    const slow = sp.has("slowmo") ? 3 : 1;
+    const full = !reduced && (!seen || sp.has("replay")) && scrollY < 40;
+    const W = innerWidth,
+      H = innerHeight;
+    const lamp = createLamp(W, H),
+      s = lamp.s;
+    const D = Math.round(Math.max(150, Math.min(300, 0.3 * Math.min(W, H)))) /* logo disc diameter */;
+    const dcx = W / 2,
+      dcy = Math.min(lamp.yRest + 92 * s + 56 * s + D / 2, H - D / 2 - 24);
+    const GS = Math.round(Math.min(Math.max(W, H) * 0.9, 1100));
+    el.disc.style.width = el.disc.style.height = D + "px";
+    el.glow.style.width = el.glow.style.height = GS + "px";
+    const coneLen = Math.max(40, (dcy - D * 0.42 - lamp.yRest) / s);
+    el.cone.setAttribute("points", `-50,84 50,84 ${(D * 0.46) / s},${coneLen} ${(-D * 0.46) / s},${coneLen}`);
+    load.classList.toggle("ld-fast", !full);
+
+    const clamp01 = (x) => Math.max(0, Math.min(1, x));
+    const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+    const setDisc = (cx, cy, sc) => {
+      el.disc.style.transform = `translate3d(${(cx - D / 2).toFixed(1)}px,${(cy - D / 2).toFixed(1)}px,0) scale(${sc.toFixed(4)})`;
+    };
+    const measureTarget = () => {
+      const b = $(".badge img"),
+        r = b && b.getBoundingClientRect();
+      if (!r || !r.width) return { cx: W * 0.85, cy: H * 0.3, d: D * 0.45 };
+      return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, d: r.width };
+    };
+
+    /* timeline (seconds of intro time; ?slowmo stretches it) */
+    const TF = 1.35 /* flicker starts */, FL = 0.8 /* flicker length */, FLY = 0.65, OVER = 0.85 /* iris starts at 85% of the flight */, IRIS = 0.8;
+    let T = 0, last = 0, acc = 0, stage = full ? "lamp" : "hold", flyAt = 0, irisAt = 0, irisDur = IRIS;
+    let gateOk = false, skipped = false, irisOn = false, fadeMode = false, tg = null, rmax = 0, waveT0 = -9, waveAmp = 0, nSnaps = 0, raf = 0, sign = 1, ended = false;
+    gate.then(() => (gateOk = true));
+
+    const light = (I) => {
+      el.bulb.setAttribute("opacity", I.toFixed(3));
+      el.rim.setAttribute("opacity", (I * 0.85).toFixed(3));
+      el.cone.setAttribute("opacity", (I * 0.9).toFixed(3));
+      el.glow.style.opacity = (I * 0.9).toFixed(3);
+      el.cap.style.opacity = I.toFixed(3);
+    };
+    const drawLamp = (lift) => {
+      const lx = lamp.x,
+        ly = lamp.y - lift,
+        ax = lamp.ax,
+        ay = lamp.ay;
+      const dx = lx - ax,
+        dy = ly - ay,
+        d = Math.hypot(dx, dy) || 1,
+        nx = -dy / d,
+        ny = dx / d;
+      const slack = Math.max(0, lamp.L0 - Math.hypot(lamp.x - ax, lamp.y - ay));
+      const sag = Math.min(60 * s, Math.sqrt((3 * d * slack) / 8)) * sign; /* slack cord hangs in a curve */
+      const wt = lamp.t - waveT0,
+        A = waveAmp * Math.exp(-wt / 0.35); /* a ripple runs along the cord after each snap */
+      let path = "";
+      for (let i = 0; i <= 16; i++) {
+        const u = i / 16;
+        let off = sag * 4 * u * (1 - u);
+        if (A > 0.05) off += A * (Math.sin(Math.PI * u) * Math.cos(2 * Math.PI * 5 * wt) + 0.45 * Math.sin(2 * Math.PI * u) * Math.cos(2 * Math.PI * 11 * wt));
+        path += (i ? "L" : "M") + (ax + dx * u + nx * off).toFixed(1) + " " + (ay + dy * u + ny * off).toFixed(1);
+      }
+      el.cord.setAttribute("d", path);
+      el.lamp.setAttribute("transform", `translate(${lx.toFixed(1)} ${ly.toFixed(1)}) rotate(${((-lamp.ang * 180) / Math.PI).toFixed(2)}) scale(${s.toFixed(3)})`);
+      const bx = lx + 81 * s * Math.sin(lamp.ang),
+        by = ly + 81 * s * Math.cos(lamp.ang);
+      el.glow.style.transform = `translate3d(${(bx - GS / 2).toFixed(1)}px,${(by - GS / 2).toFixed(1)}px,0)`;
+    };
+    const finish = () => {
+      if (ended) return;
+      ended = true;
+      cancelAnimationFrame(raf);
+      load.classList.add("go");
+      removeEventListener("keydown", onKey);
+      removeEventListener("resize", skip);
+      load.removeEventListener("wheel", block);
+      load.removeEventListener("touchmove", block);
+      introBusy = false;
+    };
+    const fadeOut = () => {
+      stage = "end";
+      load.classList.add("ld-off", "fade");
+      el.disc.style.display = "none";
+      startHero();
+      setTimeout(finish, 500);
+    };
+    const beginIris = () => {
+      tg = measureTarget();
+      if (document.documentElement.classList.contains("lite")) {
+        /* weakest tier (or software rendering): a plain cross-fade instead of repainting a growing gradient every frame */
+        irisOn = true;
+        fadeMode = true;
+        load.classList.add("fade");
+        startHero();
+        setTimeout(finish, 500);
+        return;
+      }
+      rmax = Math.hypot(Math.max(tg.cx, W - tg.cx), Math.max(tg.cy, H - tg.cy)) + 80;
+      load.style.setProperty("--x", tg.cx.toFixed(1) + "px");
+      load.style.setProperty("--y", tg.cy.toFixed(1) + "px");
+      load.classList.add("iris");
+      load.removeEventListener("wheel", block);
+      load.removeEventListener("touchmove", block);
+      startHero();
+      irisOn = true;
+      irisAt = T;
+    };
+    const beginFly = () => {
+      if (scrollY > 40) return fadeOut(); /* the browser restored a scrolled position: the badge isn't on screen */
+      tg = measureTarget();
+      stage = "fly";
+      flyAt = T;
+    };
+    function skip() {
+      if (ended || skipped) return;
+      skipped = true;
+      irisDur = 0.5;
+      if (stage === "lamp" || stage === "hold") {
+        load.classList.add("ld-off");
+        light(0);
+        if (scrollY > 40) return fadeOut();
+        tg = measureTarget();
+        setDisc(tg.cx, tg.cy, tg.d / D);
+        el.disc.style.opacity = 1;
+        stage = "done";
+        beginIris();
+      }
+    }
+    const onKey = (e) => e.key === "Escape" && skip();
+    const block = (e) => e.preventDefault();
+    addEventListener("keydown", onKey);
+    addEventListener("resize", skip);
+    load.addEventListener("wheel", block, { passive: false });
+    load.addEventListener("touchmove", block, { passive: false });
+    if (el.skip) el.skip.onclick = skip;
+
+    if (reduced) {
+      el.disc.style.display = "none";
+      gate.then(fadeOut);
+      return;
+    }
+    if (!full) {
+      tg = measureTarget();
+      setDisc(tg.cx, tg.cy, tg.d / D);
+      requestAnimationFrame(() => (el.disc.style.opacity = 1));
+    } else {
+      setDisc(dcx, dcy, 1);
+      drawLamp(0);
+    }
+    function tick(ts) {
+      raf = requestAnimationFrame(tick);
+      const dtReal = last ? Math.min(0.05, (ts - last) / 1000) : 0;
+      last = ts;
+      T += dtReal / slow;
+      if (stage === "lamp" || stage === "fly") {
+        acc += dtReal / slow;
+        while (acc >= 1 / 240) {
+          lamp.step(1 / 240);
+          acc -= 1 / 240;
+          if (lamp.snaps.length > nSnaps) {
+            const sn = lamp.snaps[nSnaps++];
+            waveT0 = lamp.t;
+            waveAmp = Math.min(14 * s, sn.v * 0.011);
+          }
+        }
+      }
+      if (stage === "lamp") {
+        const I = flickerAt((T - TF) * 1000);
+        light(I);
+        el.disc.style.opacity = (I * (1 - 0.04 * Math.sin(T * 90))).toFixed(3);
+        drawLamp(0);
+        if (T >= TF + FL + 0.05 && gateOk) beginFly();
+      } else if (stage === "fly") {
+        const p = clamp01((T - flyAt) / FLY),
+          e = ease(p);
+        const dx = tg.cx - dcx,
+          dy = tg.cy - dcy,
+          len = Math.hypot(dx, dy) || 1,
+          arc = Math.sin(Math.PI * e) * 0.06 * len;
+        setDisc(dcx + dx * e + (-dy / len) * arc, dcy + dy * e + (dx / len) * arc, 1 + (tg.d / D - 1) * e);
+        el.disc.style.opacity = 1;
+        drawLamp(p * p * p * (lamp.y + 160 * s));
+        light(1 - clamp01(p * 1.4));
+        if (p >= OVER && !irisOn) beginIris();
+        if (p >= 1) {
+          stage = "done";
+          load.classList.add("ld-off"); /* the lamp has left the screen */
+        }
+      } else if (stage === "hold") {
+        if (gateOk && T >= 0.3) {
+          stage = "done";
+          beginIris();
+        }
+      }
+      if (irisOn && !fadeMode) {
+        const p2 = clamp01((T - irisAt) / irisDur),
+          r = ease(p2) * rmax;
+        load.style.setProperty("--r", r.toFixed(1) + "px");
+        if (r > tg.d / 2 + 8) el.disc.style.display = "none"; /* the real badge underneath has taken over */
+        if (p2 >= 1) finish();
+      }
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  intro();
   /* reveal */
   const io = new IntersectionObserver(
     (es) =>
@@ -835,7 +1110,7 @@ function loadSite() {
   function govern(t) {
     const dt = t - lastT;
     lastT = t;
-    if (forced !== null || !started || q >= 2 || dt <= 0 || dt > 250) return; /* ignore loader phase + backgrounded tabs */
+    if (forced !== null || !started || introBusy || q >= 2 || dt <= 0 || dt > 250) return; /* ignore the intro + backgrounded tabs */
     if (settle > 0) {
       settle--; /* let a tier change settle (rebuild hitch, GC) before judging again */
       return;
@@ -976,7 +1251,7 @@ function loadSite() {
     lastSy = sy;
     const heroOn = sy < innerHeight * 1.08;
     if (heroOn) {
-      if (!calm || sy !== lastHeroSy || mx !== lastHx || my !== lastHy) {
+      if (started && (!calm || sy !== lastHeroSy || mx !== lastHx || my !== lastHy)) {
         calm = hero_(t);
         lastHeroSy = sy;
         lastHx = mx;
