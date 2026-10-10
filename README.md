@@ -6,7 +6,7 @@ Plain HTML + CSS + JavaScript. No build step, no frameworks, no installs.
 ## Run it
 - **Quick:** double-click `index.html`.
 - **Local server (recommended):** `npx serve .` or `python3 -m http.server`, then open the shown address.
-- **Needs internet** only for the Google Fonts (Inter, DM Mono). Everything else works offline.
+- **Needs internet** for the Google Fonts (Inter, DM Mono) and, the first time you use it, the back-to-top animation (see below). Everything else works offline.
 
 ## Folder structure
 ```
@@ -14,7 +14,11 @@ index.html        page structure + fixed text (hero, vision, footer)
 css/style.css     all styling (colours are at the top in :root)
 js/data.js        ALL editable content  <-- edit this for events, members, etc.
 js/main.js        animations + rendering (you rarely need to touch this)
+js/forge.js       the "forge the logo" back-to-top animation (see below)
+js/forge-layers.js  markup of the logo pieces used by forge.js (loaded on demand)
+css/forge.css     styling of that animation
 assets/           logo, patron photo, signature, lead-team photos
+assets/forge/     the WebP pieces of the logo (anvil, flame, legs, apex)
 ```
 
 ## Editing content (js/data.js)
@@ -56,6 +60,21 @@ Collects name, phone, email and a resume (PDF/DOC/DOCX, max 5 MB).
 
 ## Deploy (free)
 Upload the whole folder to Netlify (drag-and-drop), GitHub Pages, or Vercel. No build command needed.
+
+## Back to top: "forge the logo"
+Click the round arrow (or "Re-ignite" in the footer) and the logo is forged piece by piece while the page climbs back
+to the top, with synthesized sound. It then flies into the hero badge, the page opens from it in a glowing circle and the
+hero particles fly in again. About 5 seconds; **Skip** or `Esc` ends it early.
+- The arrow button itself is the original one in `index.html` / `style.css` (`#up`), so it keeps the site's look.
+- Settings are at the top of `js/forge.js`: `SPEED` (1.1 = about 5 s, higher = faster), `SOUND` (true/false), `VOLUME` (0-1),
+  `TARGET.selector` (the round logo it lands on).
+- Colours and fonts come from `css/forge.css` and use the site's tokens (`--ac`, `--fg`, Inter, DM Mono).
+- It follows the site's performance tiers: full tier = WebGL background + all 3D depth; middle tier = lighter 3D, no WebGL;
+  lowest tier or "reduce motion" = the old ember scroll / a plain smooth scroll.
+- **Needs internet the first time it is used**: anime.js (and three.js on strong devices) load from the jsDelivr CDN.
+  If they can't load, the page just scrolls up with the old ember effect. To run fully offline, download
+  `animejs@3.2.1/lib/anime.min.js` into `js/` and change `ANIME_URL` in `js/forge.js` to `"js/anime.min.js"`.
+- Debug: run `AIForge.start({ tier: 0 })` in the browser console to play it from anywhere on the page.
 
 ## Customising the look
 - Colours: `:root` at the top of `css/style.css` (`--ac` is the orange).

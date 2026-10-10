@@ -1,0 +1,314 @@
+/* =====================================================================
+   AI FOUNDRY — "forge the logo" back-to-top overlay
+   Uses the site's own tokens (--ac, --fg, --mut, --ln), fonts (Inter 900, DM Mono)
+   and the same orange-on-black look as the hero and the lamp intro.
+   Loaded by index.html; the overlay itself is built by js/forge.js on first use.
+   ===================================================================== */
+
+/* the overlay sits above everything; keep the site's custom cursor above the overlay */
+html.fb-run .cur {
+  z-index: 100003;
+}
+
+#fb-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  opacity: 0;
+  visibility: hidden;
+  overflow: hidden;
+  touch-action: none;
+  color: var(--fg, #f3f1ec);
+}
+#fb-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+/* fully opaque, so no page text ever shows through */
+#fb-bg {
+  position: absolute;
+  inset: 0;
+  background-color: #000; /* opaque base: the page must never show through, even without WebGL */
+  background-image: radial-gradient(circle at 50% 56%, #2d0f08 0%, #0a0605 52%, #000 100%);
+}
+#fb-gl,
+#fb-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+#fb-gl {
+  z-index: 1;
+}
+#fb-fx {
+  z-index: 3;
+}
+#fb-scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1500px;
+  perspective-origin: 50% 42%;
+  z-index: 2;
+}
+#fb-card {
+  position: relative;
+  width: min(80vw, 56vh, 480px);
+  aspect-ratio: 1/1;
+  transform-style: preserve-3d;
+  will-change: transform;
+  text-align: center;
+}
+#fb-shadow {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 9%;
+  bottom: -7%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.85);
+  filter: blur(34px);
+  transform: translateZ(-110px);
+}
+/* paper thickness: stacked discs behind the face (same off-white as --fg) */
+.fb-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(#d8d4cb, #b4afa4);
+  transform: translateZ(calc(var(--i) * -1.3px));
+}
+/* the face is white, like the real logo disc (.badge img in the hero) */
+#fb-paper {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 36%, #fff 42%, #f1eee8 100%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+#fb-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 77, 46, 0.17) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 77, 46, 0.17) 1px, transparent 1px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 78%);
+  mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 78%);
+}
+#fb-shine {
+  position: absolute;
+  inset: -20% -60%;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.75) 50%,
+    transparent 58%
+  );
+  transform: translateX(-80%);
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+}
+#fb-glowplate {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0;
+  mix-blend-mode: multiply;
+  background: radial-gradient(
+    circle at 50% 62%,
+    rgba(255, 110, 60, 0.55),
+    rgba(255, 77, 46, 0) 60%
+  );
+}
+#fb-stage {
+  position: absolute;
+  left: 13%;
+  top: 16.469%;
+  width: 74%;
+  padding-top: 67.062%;
+  transform-style: preserve-3d;
+  transform: translateZ(1px);
+}
+.fb-l {
+  position: absolute;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  will-change: transform, opacity;
+  opacity: 0.35;
+}
+.fb-l .fb-in {
+  display: block;
+  width: 100%;
+  height: 100%;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.fb-l .fb-in:not(.fb-ex) {
+  transform: translateZ(0.1px);
+}
+.fb-l .fb-ex {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateZ(calc(var(--fbk, 1px) * var(--i) * -2.6));
+  filter: brightness(0) invert(0.12);
+}
+.fb-l.ai .fb-ex {
+  filter: brightness(0.55) saturate(1.3);
+}
+.fb-glow {
+  opacity: 0;
+}
+#fb-heat {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 190, 110, 0.95),
+    rgba(255, 77, 46, 0.42) 48%,
+    rgba(255, 60, 30, 0) 78%
+  );
+  filter: blur(6px);
+}
+
+/* caption under the logo: Inter 900 word + DM Mono line, like the rest of the site */
+#fb-cap {
+  position: absolute;
+  left: 50%;
+  top: calc(113% + 6px);
+  width: 150%;
+  transform: translate3d(-50%, 0, 1px);
+  pointer-events: none;
+}
+#fb-word {
+  font: 900 clamp(22px, 5.6vw, 34px) / 1 Inter, system-ui, sans-serif;
+  color: var(--ac, #ff4d2e);
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+  min-height: 34px;
+  text-shadow: 0 2px 18px rgba(255, 77, 46, 0.3);
+}
+#fb-word span {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+#fb-text {
+  font: 400 clamp(10px, 2.9vw, 12px) / 1.5 "DM Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(243, 241, 236, 0.72);
+  min-height: 20px;
+  padding: 0 8px;
+}
+/* ring text matches the hero badge (DISCOVER ✦ BUILD ✦ INNOVATE ✦ IMPACT) */
+#fb-ringtxt {
+  position: absolute;
+  left: -13%;
+  top: -13%;
+  width: 126%;
+  height: 126%;
+  opacity: 0;
+  pointer-events: none;
+  animation: fbspin 22s linear infinite;
+  transform: translateZ(2px);
+}
+#fb-ringtxt text {
+  font: 400 8.6px "DM Mono", monospace;
+  fill: #f3f1ec;
+  letter-spacing: 0.5px;
+}
+@keyframes fbspin {
+  to {
+    transform: translateZ(2px) rotate(360deg);
+  }
+}
+
+/* the circle that opens the page from the badge: same glowing rim as the lamp intro */
+#fb-iris {
+  position: fixed;
+  border-radius: 50%;
+  z-index: 100001;
+  pointer-events: none;
+  opacity: 0;
+  border: 2px solid rgba(255, 150, 80, 0.95);
+  box-shadow:
+    0 0 30px rgba(255, 77, 46, 0.85),
+    inset 0 0 30px rgba(255, 110, 60, 0.6);
+}
+.fb-ring {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 77, 46, 0.95);
+  box-shadow:
+    0 0 22px rgba(255, 77, 46, 0.8),
+    inset 0 0 14px rgba(255, 120, 70, 0.6);
+  pointer-events: none;
+  z-index: 100002;
+  opacity: 0;
+}
+
+/* progress rail on the left edge (the site's top bar uses the same accent) */
+#fb-rail {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  z-index: 100000;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+#fb-overlay.open ~ #fb-rail {
+  opacity: 1;
+}
+#fb-rail i {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  transform: scaleY(0);
+  background: linear-gradient(to top, #ff4d2e, #ffd27a);
+}
+
+/* Skip: same pill as the loader's Skip button, so touch users are never stuck */
+#fb-skip {
+  position: absolute;
+  right: 6vw;
+  bottom: calc(6vw + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  background: none;
+  border: 1px solid rgba(243, 241, 236, 0.25);
+  color: var(--mut, #777);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font: 400 11px "DM Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#fb-skip:hover,
+#fb-skip:focus-visible {
+  color: var(--fg, #f3f1ec);
+  border-color: var(--ac, #ff4d2e);
+}
+
+/* never ship the animation to people who asked for less motion (forge.js also scrolls normally for them) */
+@media (prefers-reduced-motion: reduce) {
+  #fb-overlay,
+  #fb-rail,
+  #fb-iris {
+    display: none !important;
+  }
+}

@@ -1176,11 +1176,52 @@ function flickerAt(ms) {
       }
     })(st);
   }
-  up.onclick = launch;
+  /* back to top: the "forge the logo" animation (js/forge.js). Falls back to the ember scroll above when the
+     lightest tier is active or the animation can't load, and to a plain smooth scroll for reduced motion. */
+  const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function toTop() {
+    if (going || (window.AIForge && AIForge.isRunning())) return;
+    if (reducedMotion()) return scrollTo({ top: 0, behavior: "smooth" });
+    if (q >= 2 || !window.AIForge) return launch();
+    up.classList.add("go"); /* pulses while the animation loads (only noticeable on a slow connection) */
+    const ok = AIForge.start({
+      tier: q,
+      onFail: () => {
+        up.classList.remove("go");
+        launch();
+      },
+    });
+    if (!ok) {
+      up.classList.remove("go");
+      launch();
+    }
+  }
+  up.onclick = toTop;
   $("#top2").onclick = (e) => {
     e.preventDefault();
-    launch();
+    toTop();
   };
+  /* while the forge animation plays: keep the frame-rate governor from judging it, and re-ignite the hero when the page opens */
+  addEventListener("fb:start", () => {
+    introBusy = true;
+    up.classList.remove("go");
+  });
+  addEventListener("fb:end", () => {
+    introBusy = false;
+    settle = 30;
+    ema = 16.7;
+    slow = 0;
+  });
+  addEventListener("fb:arrived", () => {
+    /* the hero particles fly in again as the circle opens (same entrance as on first load) */
+    for (const p of D) {
+      p.x = Math.random() * W;
+      p.y = H * 1.1 + Math.random() * H * 0.6;
+      p.vx = p.vy = 0;
+    }
+    t0 = performance.now() + 150;
+    calm = false;
+  });
   let perfTick = null;
   if (params.has("perf")) {
     const box = document.createElement("pre");
@@ -1273,6 +1314,7 @@ function flickerAt(ms) {
       if (show !== upShown) {
         upShown = show;
         up.classList.toggle("show", show);
+        if (show && window.AIForge) AIForge.preload(q);
       }
       if (heroOn || full) {
         h1.style.transform = `translateY(${k * -12}vh)`;
