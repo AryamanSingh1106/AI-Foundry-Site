@@ -69,15 +69,32 @@ Upload the whole folder to Netlify (drag-and-drop), GitHub Pages, or Vercel. No 
 - **Repeat visits in the same session, the weakest performance tier, reduced motion:** the old lamp intro (a lamp drops,
   flickers on and lights the logo; repeat visits get a short version). The lamp intro is also the automatic fallback if the
   forge animation can't load or start (see below).
-- **Back-to-top arrow and the footer "Re-ignite" link:** replay the lamp intro. The screen fades to black, the page jumps to
-  the top behind it, the lamp drops and flickers on, the logo lights up, flies into the badge and the page opens from it.
-  Code: `lampIntro()` in `js/main.js` (the same function as the first-visit lamp, called with `replay = true`).
-- **Needs internet for the forge intro:** anime.js (and three.js on strong devices) load from the jsDelivr CDN. If that
-  fails or takes over ~2.5 s, the lamp intro plays instead. To run offline, download `animejs@3.2.1/lib/anime.min.js` into
+- **Back-to-top arrow and the footer "Re-ignite" link: the anvil strike (about 2.8 s).** A short cinematic made from the logo itself:
+  the screen dims and letterbox bars slide in while the camera slowly pushes in; the anvil (`assets/forge/anvil.webp`) drops and
+  slams down with a flash, a lens streak, a freeze-frame, a hard shake and a synthesized clang; the logo's **flame**
+  (`assets/forge/flame.webp`) rises out of the anvil with molten droplets, sparks and the logo's drifting **pixel squares**; then a wall
+  of **lava** with flame-tongue edges climbs the whole screen while the camera cranes up. The page jumps to the top while the lava
+  fully covers the screen (you never see the jump), the lava drains out through the top, the bars slide away and the hero particles
+  fly in again. **Skip** or `Esc` ends it early, a 6 s safety timer finishes it even if something breaks, and tapping again while it
+  plays does nothing. Reduced-motion users get a plain smooth scroll.
+  Code: the "ANVIL STRIKE" section in `js/forge.js` (`AIForge.strike()`), its styling at the bottom of `css/forge.css`, and
+  `arrowToTop()` in `js/main.js`. It reuses the forge intro's sound, sparks, ring and flash helpers. Timings are in the `STRIKE`
+  object at the top of that section (`HIT`, `LAVA0`, `LAVA1`, `END`, ...); lava height and flame size are the `LAVA` and `FLAME`
+  comments inside `strike()`; sound uses the same `SOUND` / `VOLUME` settings as the forge intro.
+  **Why it is smooth:** the lava body (heat gradient, crust, cracks) is baked once into a texture while the browser is idle, so each frame
+  only clips that texture to the animated flame-tongue edge; every DOM write is skipped when the value did not change; sparks are drawn in
+  16 batched strokes; the heavy impact work is spread over two frames; the audio graph is prepared on the visitor's first interaction, not
+  inside the tap. The strongest tier also gets a 3D camera tilt and a vignette; weaker tiers skip those (they force per-frame resampling
+  of big layers on weak GPUs). If the frame time stays high during the heavy part, an automatic quality fallback lowers the lava resolution
+  and drops the extras (speed streaks, glow layers, fewer particles). Add `?nolod` to the URL to switch that fallback off when testing.
+- **The lamp replay is still in the code.** `lampIntro(true)` in `js/main.js` is now only the fallback when the strike can't
+  start (anime.js not loaded yet, e.g. the CDN is blocked); the lamp is also still one of the two random intros on open.
+- **Needs internet for the forge intro and the anvil strike:** anime.js (and three.js on strong devices) load from the jsDelivr CDN. If that
+  fails or takes over ~2.5 s, the lamp intro plays instead (and back-to-top uses the lamp replay). To run offline, download `animejs@3.2.1/lib/anime.min.js` into
   `js/` and change `ANIME_URL` in `js/forge.js` to `"js/anime.min.js"`.
 - Only one animation can play at a time. "Reduce motion" users get a plain fade / smooth scroll.
-- Debug: `?replay` plays the full first-visit intro again, `?lamp` forces the lamp intro, `?slowmo` slows the lamp 3x,
-  `AIForge.start({ tier: 0 })` in the console plays the forge animation from anywhere.
+- Debug: `?replay` plays the full first-visit intro again, `?lamp` forces the lamp intro, `?slowmo` slows the lamp 3x, `?nolod` turns off the strike's automatic quality fallback,
+  `AIForge.start({ tier: 0 })` in the console plays the forge animation from anywhere, `AIForge.strike({ tier: 0 })` plays the anvil strike.
 
 ## Customising the look
 - Colours: `:root` at the top of `css/style.css` (`--ac` is the orange).
