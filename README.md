@@ -6,7 +6,7 @@ Plain HTML + CSS + JavaScript. No build step, no frameworks, no installs.
 ## Run it
 - **Quick:** double-click `index.html`.
 - **Local server (recommended):** `npx serve .` or `python3 -m http.server`, then open the shown address.
-- **Needs internet** for the Google Fonts (Inter, DM Mono) and, the first time you use it, the back-to-top animation (see below). Everything else works offline.
+- **Needs internet** for the Google Fonts (Inter, DM Mono) and, for the first-visit intro, a CDN script (see Intro and back to top). Everything else works offline.
 
 ## Folder structure
 ```
@@ -14,7 +14,7 @@ index.html        page structure + fixed text (hero, vision, footer)
 css/style.css     all styling (colours are at the top in :root)
 js/data.js        ALL editable content  <-- edit this for events, members, etc.
 js/main.js        animations + rendering (you rarely need to touch this)
-js/forge.js       the "forge the logo" back-to-top animation (see below)
+js/forge.js       the "forge the logo" first-visit intro (see Intro and back to top)
 js/forge-layers.js  markup of the logo pieces used by forge.js (loaded on demand)
 css/forge.css     styling of that animation
 assets/           logo, patron photo, signature, lead-team photos
@@ -61,20 +61,23 @@ Collects name, phone, email and a resume (PDF/DOC/DOCX, max 5 MB).
 ## Deploy (free)
 Upload the whole folder to Netlify (drag-and-drop), GitHub Pages, or Vercel. No build command needed.
 
-## Back to top: "forge the logo"
-Click the round arrow (or "Re-ignite" in the footer) and the logo is forged piece by piece while the page climbs back
-to the top, with synthesized sound. It then flies into the hero badge, the page opens from it in a glowing circle and the
-hero particles fly in again. About 5 seconds; **Skip** or `Esc` ends it early.
-- The arrow button itself is the original one in `index.html` / `style.css` (`#up`), so it keeps the site's look.
-- Settings are at the top of `js/forge.js`: `SPEED` (1.1 = about 5 s, higher = faster), `SOUND` (true/false), `VOLUME` (0-1),
-  `TARGET.selector` (the round logo it lands on).
-- Colours and fonts come from `css/forge.css` and use the site's tokens (`--ac`, `--fg`, Inter, DM Mono).
-- It follows the site's performance tiers: full tier = WebGL background + all 3D depth; middle tier = lighter 3D, no WebGL;
-  lowest tier or "reduce motion" = the old ember scroll / a plain smooth scroll.
-- **Needs internet the first time it is used**: anime.js (and three.js on strong devices) load from the jsDelivr CDN.
-  If they can't load, the page just scrolls up with the old ember effect. To run fully offline, download
-  `animejs@3.2.1/lib/anime.min.js` into `js/` and change `ANIME_URL` in `js/forge.js` to `"js/anime.min.js"`.
-- Debug: run `AIForge.start({ tier: 0 })` in the browser console to play it from anywhere on the page.
+## Intro and back to top
+- **First visit of a session: "forge the logo".** The logo is built piece by piece (anvil, flame, letters) with synthesized
+  sound, then flies into the hero badge and the page opens from it in a glowing circle. About 5 seconds; **Skip** or `Esc`
+  ends it early. Code: `js/forge.js` (+ `js/forge-layers.js`, `css/forge.css`, `assets/forge/`). Settings at the top of
+  `js/forge.js`: `SPEED` (1.1 = about 5 s, higher = faster), `SOUND` (true/false), `VOLUME` (0-1).
+- **Repeat visits in the same session, the weakest performance tier, reduced motion:** the old lamp intro (a lamp drops,
+  flickers on and lights the logo; repeat visits get a short version). The lamp intro is also the automatic fallback if the
+  forge animation can't load or start (see below).
+- **Back-to-top arrow and the footer "Re-ignite" link:** replay the lamp intro. The screen fades to black, the page jumps to
+  the top behind it, the lamp drops and flickers on, the logo lights up, flies into the badge and the page opens from it.
+  Code: `lampIntro()` in `js/main.js` (the same function as the first-visit lamp, called with `replay = true`).
+- **Needs internet for the forge intro:** anime.js (and three.js on strong devices) load from the jsDelivr CDN. If that
+  fails or takes over ~2.5 s, the lamp intro plays instead. To run offline, download `animejs@3.2.1/lib/anime.min.js` into
+  `js/` and change `ANIME_URL` in `js/forge.js` to `"js/anime.min.js"`.
+- Only one animation can play at a time. "Reduce motion" users get a plain fade / smooth scroll.
+- Debug: `?replay` plays the full first-visit intro again, `?lamp` forces the lamp intro, `?slowmo` slows the lamp 3x,
+  `AIForge.start({ tier: 0 })` in the console plays the forge animation from anywhere.
 
 ## Customising the look
 - Colours: `:root` at the top of `css/style.css` (`--ac` is the orange).
