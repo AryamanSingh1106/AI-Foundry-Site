@@ -406,6 +406,43 @@ function flickerAt(ms) {
     $("#pc1").textContent = PROJECTS.filter((p) => p.k === "on").length;
     $("#pc2").textContent = PROJECTS.filter((p) => p.k === "done").length;
   }
+  /* projects carousel: arrows scroll one card at a time */
+  const pg = $("#pgrid"),
+    pnav = $("#pnav"),
+    pprev = $("#pprev"),
+    pnext = $("#pnext");
+  function pStep() {
+    const c = pg.querySelector(".pc");
+    if (!c) return 0;
+    return c.getBoundingClientRect().width + (parseFloat(getComputedStyle(pg).columnGap) || 0);
+  }
+  function pUpdate() {
+    const cards = pg.querySelectorAll(".pc").length,
+      step = pStep() || 1,
+      per = Math.max(1, Math.round((pg.clientWidth + 1) / step)),
+      max = pg.scrollWidth - pg.clientWidth,
+      first = Math.min(cards, Math.round(pg.scrollLeft / step) + 1),
+      last = Math.min(cards, first + per - 1);
+    pnav.hidden = pprev.hidden = pnext.hidden = cards <= per;
+    pprev.disabled = pg.scrollLeft <= 2;
+    pnext.disabled = pg.scrollLeft >= max - 2;
+    $("#pcount").textContent = cards ? (first === last ? first : first + "–" + last) + " / " + cards : "";
+  }
+  pprev.onclick = () => pg.scrollBy({ left: -pStep() });
+  pnext.onclick = () => pg.scrollBy({ left: pStep() });
+  let pRaf = 0;
+  pg.addEventListener("scroll", () => {
+    cancelAnimationFrame(pRaf);
+    pRaf = requestAnimationFrame(pUpdate);
+  }, { passive: true });
+  addEventListener("resize", pUpdate);
+  /* new cards drawn (tab switch / remote data): back to the start */
+  new MutationObserver(() => {
+    pg.style.scrollBehavior = "auto";
+    pg.scrollLeft = 0;
+    pg.style.scrollBehavior = "";
+    pUpdate();
+  }).observe(pg, { childList: true });
   function openP(i) {
     const p = PROJECTS[i];
     lastF = document.activeElement;

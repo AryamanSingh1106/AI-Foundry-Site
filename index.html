@@ -206,7 +206,14 @@
         <button class="on" data-k="on">Ongoing</button
         ><button data-k="done">Completed</button>
       </div>
-      <div class="pgrid" id="pgrid"></div>
+      <div class="pwrap" id="pwrap">
+        <button type="button" class="parr prev" id="pprev" aria-label="Previous projects">&larr;</button>
+        <div class="pgrid" id="pgrid" tabindex="-1"></div>
+        <button type="button" class="parr next" id="pnext" aria-label="Next projects">&rarr;</button>
+      </div>
+      <div class="pnav mono" id="pnav" hidden>
+        <span class="pcount" id="pcount" aria-live="polite"></span>
+      </div>
       <p class="note mono">
       </p>
     </section>

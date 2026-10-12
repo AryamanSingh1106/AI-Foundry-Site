@@ -966,13 +966,9 @@ html.lite .pipe div.s.now::after {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: grayscale(1) contrast(1.1);
-  transition:
-    filter 0.6s,
-    transform 0.8s;
+  transition: transform 0.8s;
 }
 .ph:hover img {
-  filter: none;
   transform: scale(1.05);
 }
 .ph::after {
@@ -1863,11 +1859,119 @@ h2 {
   letter-spacing: -0.04em;
   margin-right: 10px;
 }
+/* one-row carousel: 3 cards visible, scroll sideways with the arrows or a swipe */
 .pgrid {
+  --gap: 18px;
+  --per: 3;
+  display: flex;
+  gap: var(--gap);
+  margin-top: -2px;
+  /* room above/below so the hover lift and shadows are not clipped */
+  padding: 12px 0 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  outline: none;
+}
+.pgrid::-webkit-scrollbar {
+  display: none;
+}
+.pgrid > .pc {
+  flex: 0 0 calc((100% - (var(--per) - 1) * var(--gap)) / var(--per));
+  min-width: 0;
+  scroll-snap-align: start;
+}
+@media (max-width: 1000px) {
+  .pgrid {
+    --per: 2;
+  }
+}
+@media (max-width: 640px) {
+  .pgrid {
+    --per: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pgrid {
+    scroll-behavior: auto;
+  }
+}
+.pwrap {
+  position: relative;
+}
+.pnav {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+  color: var(--mut);
+}
+.pnav[hidden],
+.parr[hidden] {
+  display: none;
+}
+/* arrows sit on the left / right edge of the visible cards, centred vertically */
+.parr {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  width: 58px;
+  height: 58px;
+  margin-top: -29px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
-  gap: 18px;
-  margin-top: 10px;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--ac);
+  color: #fff;
+  font: 700 26px/1 Inter, sans-serif;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 5px rgba(0, 0, 0, 0.75),
+    0 0 26px rgba(255, 77, 46, 0.75);
+  transition:
+    transform 0.2s,
+    background 0.2s,
+    color 0.2s,
+    opacity 0.25s,
+    box-shadow 0.25s;
+}
+.parr.prev {
+  left: -38px;
+}
+.parr.next {
+  right: -38px;
+}
+.parr:hover:not(:disabled),
+.parr:focus-visible {
+  background: #fff;
+  color: var(--ac);
+  transform: scale(1.12);
+  box-shadow:
+    0 0 0 5px rgba(0, 0, 0, 0.75),
+    0 0 34px rgba(255, 140, 90, 0.95);
+}
+.parr:disabled {
+  opacity: 0.3;
+  cursor: default;
+  box-shadow: none;
+}
+@media (max-width: 800px) {
+  .parr {
+    width: 48px;
+    height: 48px;
+    margin-top: -24px;
+    font-size: 22px;
+  }
+  .parr.prev {
+    left: 6px;
+  }
+  .parr.next {
+    right: 6px;
+  }
 }
 .pc {
   position: relative;
@@ -2165,7 +2269,7 @@ h2 {
 }
 .pc .cv {
   margin: -28px -28px 2px;
-  height: 170px;
+  aspect-ratio: 16 / 9; /* standard photo shape: a 16:9 picture shows in full, others are cropped gently */
   overflow: hidden;
   position: relative;
 }
@@ -2176,21 +2280,18 @@ h2 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: grayscale(0.7) contrast(1.05);
-  transition:
-    filter 0.5s,
-    transform 0.7s;
+  object-position: 50% 15%; /* keep the top of screenshots / faces in frame */
+  transition: transform 0.7s;
   display: block;
 }
 .pc:hover .cv img {
-  filter: none;
   transform: scale(1.07);
 }
 .pc .cv:not(.none)::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, #0a0a0a, transparent 60%);
+  background: linear-gradient(to top, #0a0a0a, transparent 28%);
 }
 .av {
   overflow: hidden;
