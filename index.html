@@ -236,12 +236,21 @@
       <div class="lead" id="lead"></div>
     </section>
 
-    <section class="sec" id="members" style="background: var(--bg2)">
-      <span class="tag mono">08 — Members</span>
-      <h2 class="rv">The <span class="ac">backbone</span></h2>
-      <div class="mem" id="mem"></div>
-      <p class="note mono">
-      </p>
+    <section id="members" style="background: var(--bg2)">
+      <!-- pinned stage: scrolling spins a 3D cylinder of member cards. Cards, ring size and scroll length are all
+           built from the MEMBERS list in main.js, so adding / removing members needs no change here. -->
+      <div id="cyl">
+        <div class="st">
+          <div class="hd">
+            <span class="tag mono">08 — Members</span>
+            <h2>The <span class="ac">backbone</span></h2>
+          </div>
+          <div class="cy-scene">
+            <div class="cy-ring" id="cyring"></div>
+          </div>
+          <p class="cy-now mono" id="cynow" aria-live="off"></p>
+        </div>
+      </div>
     </section>
 
     <section id="about">

@@ -1021,6 +1021,232 @@ blockquote p + p {
 .m small {
   color: var(--mut);
 }
+/* members: cylinder (pinned stage; #cyl height is set from the member count in main.js) */
+#cyl {
+  height: 500vh;
+}
+#cyl .st {
+  background: radial-gradient(55% 45% at 85% 100%, rgba(255, 77, 46, 0.1), transparent 70%);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 11vh;
+}
+#cyl .hd {
+  padding: 0 6vw;
+}
+.cy-scene {
+  --w: clamp(140px, min(16vw, 27vh), 270px); /* sized by height too, so the cards always fit under the heading */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 9vh; /* room for the "05 / 08 - name" caption */
+  perspective: 1800px;
+  perspective-origin: 50% 30%;
+}
+.cy-scene::before {
+  /* soft orange floor light under the ring */
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: -3vh;
+  width: min(80%, 1100px);
+  height: 22vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(255, 77, 46, 0.3), transparent 70%);
+  pointer-events: none;
+}
+.cy-ring {
+  position: absolute;
+  left: 50%;
+  top: 43%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.cy-p {
+  --f: 0;
+  position: absolute;
+  width: var(--w);
+  height: calc(var(--w) * 1.32);
+  left: calc(var(--w) / -2);
+  top: calc(var(--w) * -0.66);
+  transform: rotateY(var(--a, 0deg)) translateZ(var(--r, 400px));
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 12px 16px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(243, 241, 236, calc(0.3 + 0.35 * var(--f)));
+  background:
+    radial-gradient(110% 80% at 100% 0%, hsl(var(--h) 100% 55% / 0.34), transparent 60%),
+    linear-gradient(90deg, var(--ac), rgba(255, 77, 46, 0) 72%) left bottom / 100% 4px no-repeat,
+    linear-gradient(158deg, #3a2720 0%, #241915 50%, #171110 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 30px 60px -24px rgba(255, 77, 46, calc(0.12 + 0.45 * var(--f)));
+  opacity: calc(0.3 + 0.7 * var(--f));
+  filter: saturate(calc(0.45 + 0.55 * var(--f)));
+  overflow: hidden;
+}
+/* lanyard slot, like a badge */
+.cy-slot {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 38px;
+  height: 6px;
+  margin-left: -19px;
+  border-radius: 99px;
+  background: #0a0706;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.cy-ph {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(135deg, hsl(var(--h) 100% 58%), #6b1a0c);
+  display: grid;
+  place-items: center;
+}
+.cy-ph::before {
+  /* dot grid + darker bottom edge over the photo / placeholder */
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent 45%),
+    radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1.4px) 0 0 / 12px 12px;
+}
+.cy-ph::after {
+  /* viewfinder corners */
+  content: "";
+  position: absolute;
+  inset: 9px;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(#fff, #fff) 0 0 / 14px 2px no-repeat,
+    linear-gradient(#fff, #fff) 0 0 / 2px 14px no-repeat,
+    linear-gradient(#fff, #fff) 100% 0 / 14px 2px no-repeat,
+    linear-gradient(#fff, #fff) 100% 0 / 2px 14px no-repeat,
+    linear-gradient(#fff, #fff) 0 100% / 14px 2px no-repeat,
+    linear-gradient(#fff, #fff) 0 100% / 2px 14px no-repeat,
+    linear-gradient(#fff, #fff) 100% 100% / 14px 2px no-repeat,
+    linear-gradient(#fff, #fff) 100% 100% / 2px 14px no-repeat;
+  opacity: 0.75;
+}
+.cy-in {
+  font-size: calc(var(--w) * 0.42);
+  font-weight: 900;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+.cy-ph img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cy-ix,
+.cy-mk {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+}
+.cy-ix {
+  left: 16px;
+}
+.cy-mk {
+  right: 16px;
+  color: var(--ac);
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cy-mk::after {
+  /* the little corner triangle of the AI FOUNDRY mark, drawn in CSS so it never depends on a font glyph */
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--ac);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.cy-tx {
+  padding: 0 4px;
+  min-width: 0;
+}
+.cy-tx b {
+  display: block;
+  font-size: clamp(16px, calc(var(--w) * 0.088), 23px);
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cy-tx span {
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 7px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffd9cf;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 77, 46, 0.7);
+  border-radius: 999px;
+  background: rgba(255, 77, 46, 0.14);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cy-now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3.5vh;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: #b9b4aa;
+  pointer-events: none;
+}
+html.mid .cy-p,
+html.lite .cy-p {
+  filter: none; /* the saturate() on every card is the costly part on weak devices */
+}
+html.lite .cy-p {
+  box-shadow: none;
+}
+@media (max-width: 700px) {
+  .cy-scene {
+    --w: min(46vw, 28vh);
+  }
+}
 /* footer */
 footer {
   padding: 14vh 6vw 6vh;

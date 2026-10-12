@@ -151,15 +151,26 @@ function flickerAt(ms) {
       (p) => `<div class="s"><h4>${p.title}</h4><p>${p.text}</p></div>`,
     ).join(""),
   );
+  const escH = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   function renderPeople() {
     $("#col").innerHTML = COLLABS.map(
       (c, i) =>
         `<div class="rv ${c.real ? "real" : ""}" style="--d:${(i % 4) * 0.09}s">${c.logo ? `<img src="${c.logo}" alt="${c.name}">` : c.name}</div>`,
     ).join("");
-    $("#mem").innerHTML = MEMBERS.map(
-      (m, i) =>
-        `<div class="m rv" style="--d:${(i % 6) * 0.07}s"><div class="av">${m.photo ? `<img src="${m.photo}" alt="${m.name}" loading="lazy">` : m.name[0]}</div><b>${m.name}</b><small class="mono">${m.role}</small></div>`,
-    ).join("");
+    /* members cylinder: one .cy-p card per member; the 3D layout (angle, radius, scroll length) is set in cyLayout() */
+    $("#members").style.display = MEMBERS.length ? "" : "none";
+    /* small teams (2-7) are repeated around the ring so it still closes into a full loop (the repeats are hidden from screen readers) */
+    const reps = MEMBERS.length > 1 && MEMBERS.length < 8 ? Math.ceil(8 / MEMBERS.length) : 1;
+    const slots = [];
+    for (let r = 0; r < reps; r++) MEMBERS.forEach((m, i) => slots.push([m, i, r > 0]));
+    $("#cyring").innerHTML = slots
+      .map(([m, i, dup]) => {
+        const name = String(m.name || "Member").trim() || "Member";
+        const no = String(i + 1).padStart(2, "0");
+        return `<div class="cy-p" style="--h:${8 + ((i * 7) % 26)}" data-nm="${escH(name)}" data-i="${i}" data-t="${MEMBERS.length}"${dup ? ' aria-hidden="true"' : ""}><i class="cy-slot"></i><div class="cy-ph"><span class="cy-in">${escH([...name][0].toUpperCase())}</span>${m.photo ? `<img src="${escH(m.photo)}" alt="${escH(name)}" loading="lazy" decoding="async" onerror="this.remove()">` : ""}<small class="mono cy-ix">${no}</small><em class="mono cy-mk">AF</em></div><div class="cy-tx"><b>${escH(name)}</b><span class="mono">${escH(m.role || "Member")}</span></div></div>`;
+      })
+      .join("");
     $("#lead").innerHTML = LEADERS.map(
       (l, i) =>
         `<div class="rv" style="--d:${i * 0.15}s"><div class="ph"><img src="${l.photo}" alt="${l.name}" loading="lazy" decoding="async"></div><h3>${l.name}</h3><span class="mono ac">${l.role}</span><a href="mailto:${l.email}">${l.email}</a></div>`,
@@ -1124,7 +1135,7 @@ function flickerAt(ms) {
   let going = false;
   const mq = $(".mq"),
     pns = $$(".pn"),
-    pxs = $$("h2").filter((e) => !e.closest("#jn,#md")),
+    pxs = $$("h2").filter((e) => !e.closest("#jn,#md,#cyl")),
     hzi = $(".hzb i"),
     up = $("#up"),
     ring = $("#ring"),
@@ -1146,8 +1157,61 @@ function flickerAt(ms) {
   let needMeasure = true,
     dirty = true,
     settled = false;
+  /* ===== Members cylinder (ported from Motion Lab's 09.2 CYLINDER) =====
+     Real CSS 3D ring: scrolling through the pinned #cyl rotates it; the card facing you is lit, the others fade.
+     Everything adapts to MEMBERS.length: the angle between cards, the radius (so cards never overlap), and how long
+     the section is (so every member gets about the same amount of scrolling). */
+  const cyl = $("#cyl"),
+    cyRing = $("#cyring"),
+    cyNow = $("#cynow");
+  let cyP = [],
+    cyStep = 40,
+    cyDz = 0,
+    cyDy = 0,
+    cyLast = NaN,
+    cyIdx = -1,
+    cyTop = 0,
+    cyH = 1;
+  function cyLayout() {
+    cyP = $$(".cy-p");
+    const n = cyP.length;
+    /* always a FULL ring, so the first member comes right after the last one (a loop) */
+    cyStep = 360 / Math.max(1, n);
+    const w = n ? cyP[0].offsetWidth : 250;
+    const r = n > 2 ? Math.max(w * 1.5, (w / 2 / Math.tan((cyStep * Math.PI) / 360)) * 1.12) : w * 1.5;
+    cyRing.style.setProperty("--r", r.toFixed(1) + "px");
+    cyDz = w * 1.5 - r; /* keeps the front card at the same apparent size however big the ring is */
+    cyDy = -(r - w * 1.5) * Math.sin((9 * Math.PI) / 180); /* ...and at the same height (the ring is tilted 9deg) */
+    cyP.forEach((el, i) => el.style.setProperty("--a", (i * cyStep).toFixed(2) + "deg"));
+    const total = n ? +cyP[0].dataset.t : 0;
+    const vh = n > 16 ? 32 : n > total ? 38 : 50; /* scroll per card; a bit less when a small team is repeated around the ring */
+    cyl.style.height = n <= 1 ? "100vh" : 100 + (n - 1) * vh + 40 + "vh";
+    cyLast = NaN;
+    cyIdx = -1;
+  }
+  function cylinder(p, force) {
+    const n = cyP.length;
+    if (!n) return;
+    const rot = cl(p / 0.92, 0, 1) * (n - 1) * cyStep;
+    if (!force && rot === cyLast) return;
+    cyLast = rot;
+    cyRing.style.transform = `translate3d(0,${cyDy.toFixed(1)}px,${cyDz.toFixed(1)}px) rotateX(-9deg) rotateY(${(-rot).toFixed(2)}deg)`;
+    for (let i = 0; i < n; i++) {
+      const diff = ((((i * cyStep - rot + 540) % 360) + 360) % 360) - 180;
+      cyP[i].style.setProperty("--f", Math.max(0, Math.cos((diff * Math.PI) / 180)).toFixed(3));
+    }
+    const idx = cl(Math.round(rot / cyStep), 0, n - 1);
+    if (idx !== cyIdx) {
+      cyIdx = idx;
+      const d = cyP[idx].dataset;
+      cyNow.textContent = `${String(+d.i + 1).padStart(2, "0")} / ${String(+d.t).padStart(2, "0")} — ${d.nm}`;
+    }
+  }
   function measure() {
     const sc = scrollY;
+    cyLayout(); /* first: it changes the page height, which every measurement below depends on */
+    cyTop = cyl.getBoundingClientRect().top + sc;
+    cyH = cyl.offsetHeight;
     mtTop = mt.getBoundingClientRect().top + sc;
     mtH = mt.offsetHeight;
     hzTop = hz.getBoundingClientRect().top + sc;
@@ -1448,6 +1512,8 @@ function flickerAt(ms) {
         hzi.style.transform = `scaleX(${qh})`;
         stack(qh, full);
       }
+      if (cyP.length && (full || (sy > cyTop - innerHeight * 1.2 && sy < cyTop + cyH + innerHeight * 0.2)))
+        cylinder(prog(cyTop, cyH, sy), full);
       const pp = cl((innerHeight * 0.85 - (pipeTop - scrollY)) / (innerHeight * 0.5), 0, 1);
       if (pp !== lastPp) {
         lastPp = pp;
