@@ -132,3 +132,6 @@ git commit -m "Add projects, photos, join form, footer links"
 git push
 ```
 Robocopy exit codes 0-7 mean success. Only add `/MIR` if you want files you removed from the package to be deleted in the repo too, and then ALWAYS keep `/XD .git`.
+
+
+Checking if it commits
