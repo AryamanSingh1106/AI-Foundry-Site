@@ -1135,7 +1135,7 @@ function flickerAt(ms) {
   let going = false;
   const mq = $(".mq"),
     pns = $$(".pn"),
-    pxs = $$("h2").filter((e) => !e.closest("#jn,#md,#cyl")),
+    pxs = $$("h2").filter((e) => !e.closest("#jn,#md,#cyl,#hw")),
     hzi = $(".hzb i"),
     up = $("#up"),
     ring = $("#ring"),
@@ -1207,11 +1207,40 @@ function flickerAt(ms) {
       cyNow.textContent = `${String(+d.i + 1).padStart(2, "0")} / ${String(+d.t).padStart(2, "0")} — ${d.nm}`;
     }
   }
+  /* ===== "How we work": pinned, one stage in focus at a time ===== */
+  const hw = $("#hw"),
+    hwN = $("#hwn");
+  let hwTop = 0,
+    hwH = 1,
+    hwIdx = -1,
+    lastHw = NaN;
+  function stages(p, force) {
+    const N = steps.length;
+    if (!N) return;
+    /* the line grows evenly across the WHOLE bar for the whole pinned scroll (full width a little before the section unpins).
+       Stage i lights up when the line reaches its node, which sits at i/N of the bar, so every stage gets an equal share of scroll. */
+    const w = cl(p / 0.94, 0, 1);
+    if (!force && w === lastHw) return;
+    lastHw = w;
+    fill.style.transform = `scaleX(${w.toFixed(4)})`;
+    const cur = Math.min(N - 1, Math.floor(w * N + 0.0001));
+    steps.forEach((s, i) => {
+      s.classList.toggle("on", i <= cur);
+      s.classList.toggle("now", i === cur);
+    });
+    if (cur !== hwIdx) {
+      hwIdx = cur;
+      hwN.textContent = `STAGE ${String(cur + 1).padStart(2, "0")} / ${String(N).padStart(2, "0")}`;
+    }
+  }
   function measure() {
     const sc = scrollY;
+    hw.style.height = 100 + Math.max(1, steps.length) * 80 + 20 + "vh"; /* ~80vh of scroll per stage + a short hold at the end */
     cyLayout(); /* first: it changes the page height, which every measurement below depends on */
     cyTop = cyl.getBoundingClientRect().top + sc;
     cyH = cyl.offsetHeight;
+    hwTop = hw.getBoundingClientRect().top + sc;
+    hwH = hw.offsetHeight;
     mtTop = mt.getBoundingClientRect().top + sc;
     mtH = mt.offsetHeight;
     hzTop = hz.getBoundingClientRect().top + sc;
@@ -1514,18 +1543,7 @@ function flickerAt(ms) {
       }
       if (cyP.length && (full || (sy > cyTop - innerHeight * 1.2 && sy < cyTop + cyH + innerHeight * 0.2)))
         cylinder(prog(cyTop, cyH, sy), full);
-      const pp = cl((innerHeight * 0.85 - (pipeTop - scrollY)) / (innerHeight * 0.5), 0, 1);
-      if (pp !== lastPp) {
-        lastPp = pp;
-        fill.style.transform = `scaleX(${pp})`;
-        steps.forEach((s, i) => {
-          const v = pp > i / steps.length + 0.02;
-          if (v !== stepOn[i]) {
-            stepOn[i] = v;
-            s.classList.toggle("on", v);
-          }
-        });
-      }
+      if (full || (sy > hwTop - innerHeight * 1.2 && sy < hwTop + hwH + innerHeight * 0.2)) stages(prog(hwTop, hwH, sy), full);
       if (q < 2)
         for (let i = 0; i < pxs.length; i++) {
           const vc = h2C[i] - scrollY - innerHeight / 2;

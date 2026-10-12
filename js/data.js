@@ -294,7 +294,7 @@ window.SITE_DATA = {
     },
     {
       name: "Member Name",
-      role: "MARKETING AND MEDIA",
+      role: "Research",
       photo: "",
     },
     {

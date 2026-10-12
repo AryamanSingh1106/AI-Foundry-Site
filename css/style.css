@@ -694,7 +694,26 @@ body::after {
 .pn:hover {
   border-color: var(--ac);
 }
-/* pipeline */
+/* pipeline: pinned stage, one stage in focus at a time */
+#hw {
+  height: 340vh; /* real value set in main.js from the number of stages */
+}
+#hw .st {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 6vw;
+}
+.hw-n {
+  margin-top: 6vh;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: #8d8a83;
+}
 .pipe {
   position: relative;
   display: grid;
@@ -705,6 +724,10 @@ body::after {
 @media (max-width: 800px) {
   .pipe {
     grid-template-columns: 1fr 1fr;
+  }
+  .pipe::before,
+  .pipe .fill {
+    display: none; /* the 2x2 layout has no single line to fill */
   }
 }
 .pipe::before {
@@ -726,15 +749,45 @@ body::after {
   transform-origin: 0;
   transform: scaleX(0);
   box-shadow: 0 0 18px var(--ac);
+  will-change: transform;
 }
 .pipe div.s {
   position: relative;
   padding-top: 42px;
-  opacity: 0.3;
+  opacity: 0.28;
   transition: opacity 0.5s;
 }
 .pipe div.s.on {
-  opacity: 1;
+  opacity: 0.55; /* reached, but no longer the focus */
+}
+.pipe div.s.now {
+  opacity: 1; /* the stage you are on */
+}
+.pipe div.s.now::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--ac);
+  animation: stagePulse 1.8s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes stagePulse {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+html.lite .pipe div.s.now::after {
+  animation: none;
+  display: none;
 }
 .pipe div.s::before {
   content: "";

@@ -158,11 +158,19 @@
       </div>
     </section>
 
-    <section class="sec">
-      <span class="tag mono">02 — How we work</span>
-      <h2 class="rv">One idea.<br />Four <span class="ac">stages.</span></h2>
-      <div class="pipe" id="pipe"><div class="fill"></div></div>
-      <div class="grid g3 rv" style="margin-top: 10vh" id="mis"></div>
+    <section id="how">
+      <!-- pinned: the page locks here and scrolling moves through the stages one at a time (height is set from the number of stages in main.js) -->
+      <div id="hw">
+        <div class="st">
+          <span class="tag mono">02 — How we work</span>
+          <h2>One idea.<br />Four <span class="ac">stages.</span></h2>
+          <div class="pipe" id="pipe"><div class="fill"></div></div>
+          <p class="hw-n mono" id="hwn" aria-live="off">STAGE 01 / 04</p>
+        </div>
+      </div>
+    </section>
+    <section class="sec" style="padding-top: 4vh">
+      <div class="grid g3 rv" id="mis"></div>
     </section>
 
     <div class="stats" id="stats">
