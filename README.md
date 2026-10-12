@@ -63,19 +63,21 @@ Upload the whole folder to Netlify (drag-and-drop), GitHub Pages, or Vercel. No 
 
 ## Intro and back to top
 - **First visit of a session: "forge the logo".** The logo is built piece by piece (anvil, flame, letters) with synthesized
-  sound, then flies into the hero badge and the page opens from it in a glowing circle. About 5 seconds; **Skip** or `Esc`
+  sound, then flies into the hero badge and the page opens from it in a glowing circle. About 5 seconds; `Esc`
   ends it early. Code: `js/forge.js` (+ `js/forge-layers.js`, `css/forge.css`, `assets/forge/`). Settings at the top of
   `js/forge.js`: `SPEED` (1.1 = about 5 s, higher = faster), `SOUND` (true/false), `VOLUME` (0-1).
 - **Repeat visits in the same session, the weakest performance tier, reduced motion:** the old lamp intro (a lamp drops,
   flickers on and lights the logo; repeat visits get a short version). The lamp intro is also the automatic fallback if the
   forge animation can't load or start (see below).
-- **Back-to-top arrow and the footer "Re-ignite" link: the anvil strike (about 2.8 s).** A short cinematic made from the logo itself:
+- **Back-to-top arrow and the footer "Re-ignite" link: the anvil strike (about 4.6 s).** A short cinematic made from the logo itself:
   the screen dims and letterbox bars slide in while the camera slowly pushes in; the anvil (`assets/forge/anvil.webp`) drops and
   slams down with a flash, a lens streak, a freeze-frame, a hard shake and a synthesized clang; the logo's **flame**
-  (`assets/forge/flame.webp`) rises out of the anvil with molten droplets, sparks and the logo's drifting **pixel squares**; then a wall
-  of **lava** with flame-tongue edges climbs the whole screen while the camera cranes up. The page jumps to the top while the lava
+  (`assets/forge/flame.webp`) grows out of the anvil's top face and keeps burning there: it is rooted on the anvil and moves with it, so it
+  never detaches, and fire tongues, embers and the logo's drifting **pixel squares** stream up out of it continuously (the fire lives in a
+  canvas inside the camera group; see `drawFire` in `strike()`); then a wall
+  of **lava** with flame-tongue edges climbs the whole screen, swallowing the burning anvil, while the camera cranes up. The page jumps to the top while the lava
   fully covers the screen (you never see the jump), the lava drains out through the top, the bars slide away and the hero particles
-  fly in again. **Skip** or `Esc` ends it early, a 6 s safety timer finishes it even if something breaks, and tapping again while it
+  fly in again. There is no Skip button on any intro or animation; `Esc` still ends the current one early (keyboard users). An 8 s safety timer finishes it even if something breaks, and tapping again while it
   plays does nothing. Reduced-motion users get a plain smooth scroll.
   Code: the "ANVIL STRIKE" section in `js/forge.js` (`AIForge.strike()`), its styling at the bottom of `css/forge.css`, and
   `arrowToTop()` in `js/main.js`. It reuses the forge intro's sound, sparks, ring and flash helpers. Timings are in the `STRIKE`
@@ -89,6 +91,12 @@ Upload the whole folder to Netlify (drag-and-drop), GitHub Pages, or Vercel. No 
   and drops the extras (speed streaks, glow layers, fewer particles). Add `?nolod` to the URL to switch that fallback off when testing.
 - **The lamp replay is still in the code.** `lampIntro(true)` in `js/main.js` is now only the fallback when the strike can't
   start (anime.js not loaded yet, e.g. the CDN is blocked); the lamp is also still one of the two random intros on open.
+- **Sound and browsers.** Browsers only allow sound after the visitor has clicked, tapped or pressed a key, so the page-open forge intro is silent
+  until they do (on a very first visit, or after restarting the browser). While it is blocked, a small "Click anywhere for sound" hint shows
+  during the forge intro; the first click starts the sound from that moment (sounds that fire while blocked are skipped, not queued, so nothing
+  bursts out late). The back-to-top strike always has sound, because it starts from a tap. To get sound at page open in Edge/Chrome on your own
+  computer: lock icon in the address bar > Site permissions > Media autoplay > Allow (or edge://settings/content/mediaAutoplay). The sound is
+  controlled by `SOUND` / `VOLUME` at the top of `js/forge.js`.
 - **Needs internet for the forge intro and the anvil strike:** anime.js (and three.js on strong devices) load from the jsDelivr CDN. If that
   fails or takes over ~2.5 s, the lamp intro plays instead (and back-to-top uses the lamp replay). To run offline, download `animejs@3.2.1/lib/anime.min.js` into
   `js/` and change `ANIME_URL` in `js/forge.js` to `"js/anime.min.js"`.

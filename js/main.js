@@ -499,18 +499,29 @@ function flickerAt(ms) {
     t0 = performance.now() + 250;
     started = true;
   };
-  function intro() {
+  /* replay: the hero particles fly in again, exactly like on first load */
+  const replayHero = () => {
+    for (const p of D) {
+      p.x = Math.random() * W;
+      p.y = H * 1.1 + Math.random() * H * 0.6;
+      p.vx = p.vy = 0;
+    }
+    calm = false;
+    startHero();
+  };
+  function lampIntro(replay = false) {
+    /* replay = the back-to-top button: the same intro again (lamp, flicker, logo, circle) with the page jumping to the top behind the dark screen */
     const sp = new URLSearchParams(location.search);
     /* a returning visitor already has this browser's cached content on screen: don't hold the intro for fresh data */
-    const gate = readCache() ? fontsReady.then(() => {}) : Promise.all([fontsReady, firstData]);
+    const gate = replay ? Promise.resolve() : readCache() ? fontsReady.then(() => {}) : Promise.all([fontsReady, firstData]);
     const el = {
       cord: $("#ldcord"), lamp: $("#ldlamp"), cone: $("#ldcone"), rim: $("#ldglowrim"), bulb: $("#ldbulb"),
-      glow: $("#ldglow"), disc: $("#lddisc"), cap: $("#ldcap"), skip: $("#ldskip"),
+      glow: $("#ldglow"), disc: $("#lddisc"), cap: $("#ldcap"),
     };
     if (!load || !el.lamp || !el.disc) {
       /* old cached HTML without the lamp markup: just open the page */
       gate.then(() => {
-        startHero();
+        heroGo();
         introBusy = false;
         if (load) load.classList.add("go");
       });
@@ -523,7 +534,7 @@ function flickerAt(ms) {
       sessionStorage.setItem("af:intro", "1");
     } catch {}
     const slow = sp.has("slowmo") ? 3 : 1;
-    const full = !reduced && (!seen || sp.has("replay")) && scrollY < 40;
+    const full = !reduced && (replay || scrollY < 40); /* the full lamp intro plays on every open (not only the first of a session) */
     const W = innerWidth,
       H = innerHeight;
     const lamp = createLamp(W, H),
@@ -537,6 +548,10 @@ function flickerAt(ms) {
     const coneLen = Math.max(40, (dcy - D * 0.42 - lamp.yRest) / s);
     el.cone.setAttribute("points", `-50,84 50,84 ${(D * 0.46) / s},${coneLen} ${(-D * 0.46) / s},${coneLen}`);
     load.classList.toggle("ld-fast", !full);
+
+    const heroGo = () => (replay ? replayHero() : startHero());
+    const root = document.documentElement;
+    let jumpTimer = 0, failTimer = 0;
 
     const clamp01 = (x) => Math.max(0, Math.min(1, x));
     const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -556,7 +571,11 @@ function flickerAt(ms) {
     let gateOk = false, skipped = false, irisOn = false, fadeMode = false, tg = null, rmax = 0, waveT0 = -9, waveAmp = 0, nSnaps = 0, raf = 0, sign = 1, ended = false;
     gate.then(() => (gateOk = true));
 
+    let lastLight = -1; /* the lamp's light is steady for long stretches: only touch the DOM when it actually changed */
     const light = (I) => {
+      const lk = Math.round(I * 1000);
+      if (lk === lastLight) return;
+      lastLight = lk;
       el.bulb.setAttribute("opacity", I.toFixed(3));
       el.rim.setAttribute("opacity", (I * 0.85).toFixed(3));
       el.cone.setAttribute("opacity", (I * 0.9).toFixed(3));
@@ -596,16 +615,26 @@ function flickerAt(ms) {
       cancelAnimationFrame(raf);
       load.classList.add("go");
       removeEventListener("keydown", onKey);
-      removeEventListener("resize", skip);
+      removeEventListener("resize", onResize);
       load.removeEventListener("wheel", block);
       load.removeEventListener("touchmove", block);
       introBusy = false;
+      if (replay) {
+        clearTimeout(jumpTimer);
+        clearTimeout(failTimer);
+        load.style.transition = load.style.opacity = "";
+        root.style.overflow = "";
+        root.classList.remove("replay");
+        window.__afReplay = false;
+        scrollTo(0, 0);
+        resetGovernor(); /* don't let the frame-rate governor judge the frames that just played */
+      }
     };
     const fadeOut = () => {
       stage = "end";
       load.classList.add("ld-off", "fade");
       el.disc.style.display = "none";
-      startHero();
+      heroGo();
       setTimeout(finish, 500);
     };
     const beginIris = () => {
@@ -615,7 +644,7 @@ function flickerAt(ms) {
         irisOn = true;
         fadeMode = true;
         load.classList.add("fade");
-        startHero();
+        heroGo();
         setTimeout(finish, 500);
         return;
       }
@@ -625,7 +654,7 @@ function flickerAt(ms) {
       load.classList.add("iris");
       load.removeEventListener("wheel", block);
       load.removeEventListener("touchmove", block);
-      startHero();
+      heroGo();
       irisOn = true;
       irisAt = T;
     };
@@ -639,6 +668,11 @@ function flickerAt(ms) {
       if (ended || skipped) return;
       skipped = true;
       irisDur = 0.5;
+      if (replay) {
+        clearTimeout(jumpTimer);
+        load.style.transition = load.style.opacity = "";
+        scrollTo(0, 0);
+      }
       if (stage === "lamp" || stage === "hold") {
         load.classList.add("ld-off");
         light(0);
@@ -653,15 +687,38 @@ function flickerAt(ms) {
     const onKey = (e) => e.key === "Escape" && skip();
     const block = (e) => e.preventDefault();
     addEventListener("keydown", onKey);
-    addEventListener("resize", skip);
+    /* a replay ignores the small resizes that mobile browsers fire when the address bar moves */
+    const onResize = replay ? () => (Math.abs(innerWidth - W) > 2 || Math.abs(innerHeight - H) > 150) && skip() : skip;
+    addEventListener("resize", onResize);
     load.addEventListener("wheel", block, { passive: false });
     load.addEventListener("touchmove", block, { passive: false });
-    if (el.skip) el.skip.onclick = skip;
 
     if (reduced) {
       el.disc.style.display = "none";
       gate.then(fadeOut);
       return;
+    }
+    if (replay) {
+      window.__afReplay = true;
+      introBusy = true;
+      root.classList.add("replay");
+      root.style.overflow = "hidden"; /* nothing can scroll behind the intro */
+      load.classList.remove("go", "ld-off", "fade", "iris", "ld-fast");
+      load.style.setProperty("--r", "0px");
+      el.disc.style.display = "";
+      el.disc.style.opacity = 0;
+      light(0);
+      /* the dark screen fades in over the page, THEN the page jumps to the top underneath it */
+      load.style.transition = "none";
+      load.style.opacity = "0";
+      void load.offsetWidth;
+      load.style.transition = "opacity 0.35s ease";
+      load.style.opacity = "1";
+      jumpTimer = setTimeout(() => {
+        scrollTo(0, 0);
+        load.style.transition = load.style.opacity = "";
+      }, 400);
+      failTimer = setTimeout(finish, 14000); /* never trap anyone behind the intro */
     }
     if (!full) {
       tg = measureTarget();
@@ -670,6 +727,7 @@ function flickerAt(ms) {
     } else {
       setDisc(dcx, dcy, 1);
       drawLamp(0);
+      load.classList.add("ld-lamp"); /* the lamp now sits above the screen, so it is safe to show */
     }
     function tick(ts) {
       raf = requestAnimationFrame(tick);
@@ -725,6 +783,43 @@ function flickerAt(ms) {
       }
     }
     raf = requestAnimationFrame(tick);
+  }
+  /* first visit of a session: the logo is FORGED piece by piece (js/forge.js), then it flies into the hero badge and the
+     page opens from it. Everything else (repeat visits, the weakest tier, reduced motion, no CDN / no anime.js, ?lamp)
+     uses the lamp intro above, which is also the fallback if the forge animation can't start. ?replay forces the full intro. */
+  function intro() {
+    const sp = new URLSearchParams(location.search);
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem("af:intro") === "1";
+    } catch {}
+    /* each time the full intro plays, flip a coin: forge the logo, or the lamp. ?forge / ?lamp force one for testing */
+    const wantForge = sp.has("forge") ? true : sp.has("lamp") ? false : Math.random() < 0.5;
+    const forge = !reduced && scrollY < 40 && wantForge && load && window.AIForge;
+    if (!forge) return lampIntro();
+    load.classList.add("ld-fast"); /* plain black screen while the animation downloads (normally well under a second) */
+    const giveUp = new Promise((r) => setTimeout(() => r(false), 2500));
+    Promise.race([AIForge.load(), giveUp])
+      .then((ok) => (ok && q < 2 ? AIForge.prepare(q, 1500) : false))
+      .catch(() => false)
+      .then((ok) => {
+        if (!ok) return lampIntro();
+        try {
+          sessionStorage.setItem("af:intro", "1");
+        } catch {}
+        /* if the forge animation breaks half way, forge.js tidies up after itself and the lamp intro takes over */
+        const lampInstead = () => {
+          introBusy = true;
+          started = false;
+          try {
+            sessionStorage.removeItem("af:intro"); /* so the lamp plays its full version, not the short repeat-visit one */
+          } catch {}
+          load.classList.remove("go");
+          lampIntro();
+        };
+        if (!AIForge.start({ tier: q, onFail: lampInstead })) lampIntro();
+      });
   }
   intro();
   /* reveal */
@@ -1124,6 +1219,11 @@ function flickerAt(ms) {
       setQuality(q + 1);
     }
   }
+  const resetGovernor = () => {
+    settle = 30;
+    ema = 16.7;
+    slow = 0;
+  };
   function launch() {
     if (going) return;
     going = true;
@@ -1176,51 +1276,44 @@ function flickerAt(ms) {
       }
     })(st);
   }
-  /* back to top: the "forge the logo" animation (js/forge.js). Falls back to the ember scroll above when the
-     lightest tier is active or the animation can't load, and to a plain smooth scroll for reduced motion. */
+  /* ===== back to top =====
+     Arrow button + footer link -> the ANVIL STRIKE (js/forge.js, AIForge.strike, ~2.8 s): letterboxed, an anvil slams in with a
+     flash, shake and clang, the logo's flame rises, a wall of lava climbs the screen, the page jumps to the top while the lava
+     covers everything, then the lava drains away and the hero particles fly in again.
+     The lamp replay (lampIntro(true)) is kept as the fallback if the strike can't start (anime.js not loaded yet).
+     The lamp and the forge-the-logo animation are still the two random intros on open (see intro() above).
+     Guarded so only one animation can play at a time. */
   const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function toTop() {
-    if (going || (window.AIForge && AIForge.isRunning())) return;
+  const busy = () => introBusy || going || !!(window.AIForge && AIForge.isRunning());
+  function arrowToTop() {
+    if (busy()) return;
     if (reducedMotion()) return scrollTo({ top: 0, behavior: "smooth" });
-    if (q >= 2 || !window.AIForge) return launch();
-    up.classList.add("go"); /* pulses while the animation loads (only noticeable on a slow connection) */
-    const ok = AIForge.start({
-      tier: q,
-      onFail: () => {
-        up.classList.remove("go");
-        launch();
-      },
-    });
-    if (!ok) {
-      up.classList.remove("go");
-      launch();
-    }
+    /* the anvil strike (js/forge.js). It needs anime.js, which is warmed up as soon as the arrow appears; on the rare tap
+       before that has loaded (or if the CDN is blocked) the old lamp replay below plays instead. */
+    if (window.AIForge && AIForge.strike({ tier: q })) return;
+    if (!load || !$("#ldlamp") || !$("#lddisc")) return launch(); /* old cached HTML without the lamp markup */
+    lampIntro(true);
   }
-  up.onclick = toTop;
-  $("#top2").onclick = (e) => {
+  function footerToTop(e) {
     e.preventDefault();
-    toTop();
-  };
+    arrowToTop();
+  }
+  up.onclick = arrowToTop;
+  $("#top2").onclick = footerToTop;
   /* while the forge animation plays: keep the frame-rate governor from judging it, and re-ignite the hero when the page opens */
   addEventListener("fb:start", () => {
     introBusy = true;
-    up.classList.remove("go");
+    if (load) load.classList.add("go"); /* the forge overlay is opaque, so nothing flashes */
   });
   addEventListener("fb:end", () => {
     introBusy = false;
-    settle = 30;
-    ema = 16.7;
-    slow = 0;
+    if (!started) startHero(); /* intro skipped before the page opened */
+    resetGovernor();
   });
   addEventListener("fb:arrived", () => {
-    /* the hero particles fly in again as the circle opens (same entrance as on first load) */
-    for (const p of D) {
-      p.x = Math.random() * W;
-      p.y = H * 1.1 + Math.random() * H * 0.6;
-      p.vx = p.vy = 0;
-    }
-    t0 = performance.now() + 150;
-    calm = false;
+    sy = 0; /* the page just jumped to the top: don't let the smoothed scroll glide there */
+    dirty = true;
+    replayHero();
   });
   let perfTick = null;
   if (params.has("perf")) {
@@ -1314,7 +1407,7 @@ function flickerAt(ms) {
       if (show !== upShown) {
         upShown = show;
         up.classList.toggle("show", show);
-        if (show && window.AIForge) AIForge.preload(q);
+        if (show && window.AIForge && AIForge.warm) AIForge.warm(q); /* anime.js, the images and the baked lava texture: ready before the first tap */
       }
       if (heroOn || full) {
         h1.style.transform = `translateY(${k * -12}vh)`;

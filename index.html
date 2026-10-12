@@ -15,6 +15,7 @@
     />
     <link rel="icon" href="assets/logo.jpg" />
     <link rel="preload" as="image" href="assets/logo.jpg" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/forge.css" />
   </head>
@@ -75,14 +76,13 @@
         <img src="assets/logo.jpg" alt="" decoding="async" />
       </div>
       <span class="ld-cap mono" id="ldcap">Igniting the foundry</span>
-      <button type="button" class="ld-skip mono" id="ldskip" aria-label="Skip intro">Skip</button>
     </div>
     <noscript><style>#load{display:none}</style></noscript>
     <script>
       /* Failsafe: whatever happens (slow network, script error), never trap a visitor on the loading screen. */
       setTimeout(function () {
         var l = document.getElementById("load");
-        if (l) l.classList.add("go");
+        if (l && !window.__afReplay) l.classList.add("go");
       }, 9000);
     </script>
     <nav>

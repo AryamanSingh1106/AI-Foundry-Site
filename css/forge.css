@@ -13,6 +13,7 @@ html.fb-run .cur {
 #fb-overlay {
   position: fixed;
   inset: 0;
+  contain: layout paint style;
   z-index: 99999;
   opacity: 0;
   visibility: hidden;
@@ -41,6 +42,8 @@ html.fb-run .cur {
 }
 #fb-gl {
   z-index: 1;
+  opacity: 0;
+  transition: opacity 0.7s ease;
 }
 #fb-fx {
   z-index: 3;
@@ -65,13 +68,12 @@ html.fb-run .cur {
 }
 #fb-shadow {
   position: absolute;
-  left: 5%;
-  right: 5%;
-  top: 9%;
-  bottom: -7%;
+  left: -2%;
+  right: -2%;
+  top: 2%;
+  bottom: -14%;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.85);
-  filter: blur(34px);
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.85) 62%, rgba(0, 0, 0, 0) 100%); /* soft edge without a blur filter */
   transform: translateZ(-110px);
 }
 /* paper thickness: stacked discs behind the face (same off-white as --fg) */
@@ -176,7 +178,6 @@ html.fb-run .cur {
     rgba(255, 77, 46, 0.42) 48%,
     rgba(255, 60, 30, 0) 78%
   );
-  filter: blur(6px);
 }
 
 /* caption under the logo: Inter 900 word + DM Mono line, like the rest of the site */
@@ -235,14 +236,19 @@ html.fb-run .cur {
 /* the circle that opens the page from the badge: same glowing rim as the lamp intro */
 #fb-iris {
   position: fixed;
+  left: 0;
+  top: 0;
+  width: 512px;
+  height: 512px;
   border-radius: 50%;
   z-index: 100001;
   pointer-events: none;
   opacity: 0;
-  border: 2px solid rgba(255, 150, 80, 0.95);
+  will-change: transform, opacity;
+  border: 1px solid rgba(255, 150, 80, 0.95);
   box-shadow:
-    0 0 30px rgba(255, 77, 46, 0.85),
-    inset 0 0 30px rgba(255, 110, 60, 0.6);
+    0 0 16px rgba(255, 77, 46, 0.85),
+    inset 0 0 16px rgba(255, 110, 60, 0.6);
 }
 .fb-ring {
   position: fixed;
@@ -254,6 +260,15 @@ html.fb-run .cur {
   box-shadow:
     0 0 22px rgba(255, 77, 46, 0.8),
     inset 0 0 14px rgba(255, 120, 70, 0.6);
+  pointer-events: none;
+  z-index: 100002;
+  opacity: 0;
+}
+
+/* soft full-screen glow (anvil hit, ignition, page opening); built and removed by forge.js */
+.fb-flash {
+  position: fixed;
+  inset: 0;
   pointer-events: none;
   z-index: 100002;
   opacity: 0;
@@ -282,33 +297,195 @@ html.fb-run .cur {
   background: linear-gradient(to top, #ff4d2e, #ffd27a);
 }
 
-/* Skip: same pill as the loader's Skip button, so touch users are never stuck */
-#fb-skip {
-  position: absolute;
-  right: 6vw;
-  bottom: calc(6vw + env(safe-area-inset-bottom, 0px));
-  z-index: 5;
-  background: none;
-  border: 1px solid rgba(243, 241, 236, 0.25);
-  color: var(--mut, #777);
-  padding: 8px 14px;
-  border-radius: 999px;
-  font: 400 11px "DM Mono", monospace;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-#fb-skip:hover,
-#fb-skip:focus-visible {
-  color: var(--fg, #f3f1ec);
-  border-color: var(--ac, #ff4d2e);
-}
-
 /* never ship the animation to people who asked for less motion (forge.js also scrolls normally for them) */
 @media (prefers-reduced-motion: reduce) {
   #fb-overlay,
   #fb-rail,
   #fb-iris {
+    display: none !important;
+  }
+}
+
+/* shown only while the browser still blocks sound; hides itself once the sound starts */
+#fb-snd {
+  position: absolute;
+  left: 50%;
+  bottom: calc(6.5vh + 16px);
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 7px 14px;
+  border: 1px solid rgba(243, 241, 236, 0.22);
+  border-radius: 999px;
+  color: rgba(243, 241, 236, 0.62);
+  font: 400 11px "DM Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fbSndIn 0.6s ease both;
+}
+@keyframes fbSndIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* cinematic letterbox bars for the forge intro (forge.js slides them in and out; no vignette layer: the background gradient already darkens the edges) */
+.fb-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6.5vh;
+  background: #000;
+  transform: scaleY(0);
+  pointer-events: none;
+  will-change: transform;
+}
+#fb-bt {
+  top: 0;
+  transform-origin: 50% 0;
+}
+#fb-bb {
+  bottom: 0;
+  transform-origin: 50% 100%;
+}
+
+/* =====================================================================
+   ANVIL STRIKE (back-to-top): a temporary overlay built and removed by forge.js (AIForge.strike)
+   Layers, bottom to top: scene (black + anvil), lava canvas, sparks canvas, the logo's flame, lens streak, flash, vignette,
+   letterbox bars. The container itself is transparent: the lava's trailing edge is what reveals the page.
+   ===================================================================== */
+#fbs {
+  position: fixed;
+  inset: 0;
+  contain: layout paint style;
+  z-index: 99999;
+  overflow: hidden;
+  touch-action: none;
+  color: var(--fg, #f3f1ec);
+  will-change: opacity;
+}
+#fbs-scene {
+  position: absolute;
+  inset: 0;
+  background: #000; /* opaque: the page must never show through while it jumps */
+  will-change: opacity;
+}
+#fbs-shake {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+/* oversized so the shake, the roll and the zoom never show an edge */
+#fbs-bg {
+  position: absolute;
+  inset: -90px;
+  background: radial-gradient(circle at 50% 54%, #2d0f08 0%, #0a0605 52%, #000 100%);
+}
+#fbs-hot {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 150vmin;
+  height: 150vmin;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255, 120, 50, 0.55), rgba(255, 60, 30, 0.15) 35%, rgba(255, 60, 30, 0) 65%);
+  opacity: 0.18;
+  pointer-events: none;
+  will-change: opacity;
+}
+#fbs-anvil {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: min(78vw, 560px);
+  height: auto;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+  filter: drop-shadow(0 0 26px rgba(255, 90, 40, 0.35));
+  user-select: none;
+  -webkit-user-drag: none;
+}
+#fbs-lava,
+#fbs-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* the logo's flame: sits inside the camera group on the anvil's top face (its glowing base plate is at 88% of its height, so it scales from there);
+   forge.js sets its size and position and makes it burn in place */
+#fbs-flame {
+  position: absolute;
+  height: auto;
+  opacity: 0;
+  transform-origin: 50% 88%;
+  pointer-events: none;
+  will-change: transform, opacity;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* fire tongues, embers and pixel squares that rise out of the anvil (inside the camera group) */
+#fbs-fire {
+  position: absolute;
+  pointer-events: none;
+}
+/* anamorphic lens streak across the strike line */
+#fbs-streak {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  opacity: 0;
+  transform: scaleX(0);
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 190, 110, 0), #ffd9a0 22%, #fff 50%, #ffd9a0 78%, rgba(255, 190, 110, 0));
+  box-shadow: 0 0 26px 8px rgba(255, 150, 70, 0.55);
+  will-change: transform, opacity;
+}
+#fbs-white {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+  background: radial-gradient(circle at 50% 54%, #fff 0%, #ffe2b0 18%, rgba(255, 150, 70, 0.92) 46%, rgba(255, 77, 46, 0.5) 100%);
+}
+#fbs-vig {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.68) 100%);
+}
+/* cinematic letterbox bars: slide in at the start, out as the lava leaves */
+.fbs-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #000;
+  transform: scaleY(0);
+  pointer-events: none;
+  will-change: transform;
+}
+#fbs-bt {
+  top: 0;
+  transform-origin: 50% 0;
+}
+#fbs-bb {
+  bottom: 0;
+  transform-origin: 50% 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #fbs {
     display: none !important;
   }
 }

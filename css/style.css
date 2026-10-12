@@ -139,6 +139,10 @@ h2 {
   height: 100%;
   overflow: visible;
   pointer-events: none;
+  visibility: hidden; /* hidden until main.js has placed the lamp above the screen (class ld-lamp) */
+}
+#load.ld-lamp .ld-svg {
+  visibility: visible;
 }
 .ld-cord {
   fill: none;
@@ -206,26 +210,6 @@ h2 {
   color: var(--fg);
   opacity: 0;
 }
-.ld-skip {
-  position: absolute;
-  right: 6vw;
-  bottom: 6vw;
-  background: none;
-  border: 1px solid rgba(243, 241, 236, 0.25);
-  color: var(--mut);
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.ld-skip:hover,
-.ld-skip:focus-visible {
-  color: var(--fg);
-  border-color: var(--ac);
-}
-#load.iris .ld-skip,
 #load.iris .ld-cap {
   opacity: 0;
   pointer-events: none;
@@ -239,8 +223,7 @@ h2 {
 /* short version (repeat visits): no lamp, just the logo sitting where it belongs, then the circle opens */
 #load.ld-fast .ld-svg,
 #load.ld-fast .ld-glow,
-#load.ld-fast .ld-cap,
-#load.ld-fast .ld-skip {
+#load.ld-fast .ld-cap {
   display: none;
 }
 #load.ld-fast .ld-disc {
@@ -1976,4 +1959,9 @@ html.mid .cur {
 }
 html.mid .gf::before {
   animation: none;
+}
+
+/* the custom cursor stays visible above the replayed intro (back-to-top button) */
+html.replay .cur {
+  z-index: 101;
 }
