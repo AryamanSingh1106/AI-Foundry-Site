@@ -588,7 +588,7 @@ body::after {
 }
 /* horizontal */
 #hz {
-  height: 420vh;
+  height: 800vh; /* scroll length of the deck: ~90vh per card flick (7 flicks for 8 cards) */
   padding: 0;
 }
 #hz .st {
@@ -604,30 +604,82 @@ body::after {
 #hz .hd {
   padding: 0 6vw;
 }
+/* the deck: every card is centred in #trk and main.js (stack()) flicks them off one by one as you scroll */
 #trk {
-  display: flex;
-  gap: 2vw;
-  padding: 0 6vw;
-  will-change: transform;
+  position: relative;
+  width: 100%;
+  height: clamp(320px, 56vh, 540px);
 }
 .pn {
-  flex: 0 0 min(78vw, 520px);
-  height: 52vh;
-  border: 1px solid var(--ln);
-  border-radius: 20px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(86vw, 600px);
+  height: clamp(300px, 44vh, 420px);
+  transform: translate(-50%, -50%); /* resting position before JS runs; stack() takes over */
+  border: 1.5px solid rgba(243, 241, 236, 0.55); /* the white edge that outlines each card in the deck */
+  border-radius: 22px;
   padding: 34px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: linear-gradient(160deg, #111, #000);
-  position: relative;
+  background:
+    radial-gradient(110% 85% at 100% 0%, rgba(255, 77, 46, 0.36), transparent 58%),
+    linear-gradient(90deg, var(--ac), rgba(255, 77, 46, 0) 72%) left bottom / 100% 4px no-repeat,
+    linear-gradient(158deg, #3a2720 0%, #241915 48%, #171110 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 30px 60px -24px rgba(255, 77, 46, 0.45),
+    0 22px 40px -22px rgba(0, 0, 0, 0.9);
   overflow: hidden;
+  isolation: isolate;
+}
+/* fine dot texture that fades out from the top-right corner */
+.pn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.5px) 0 0 / 16px 16px;
+  -webkit-mask-image: linear-gradient(225deg, #000 0%, transparent 55%);
+  mask-image: linear-gradient(225deg, #000 0%, transparent 55%);
+}
+/* little tag in the corner: the 4 pillars vs. what's inside the Foundry */
+.pn::after {
+  content: "PILLAR";
+  position: absolute;
+  top: 26px;
+  right: 28px;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--fg);
+  padding: 6px 12px;
+  border: 1px solid rgba(243, 241, 236, 0.4);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+}
+.pn.ins::after {
+  content: "INSIDE";
+  color: #fff;
+  background: var(--ac);
+  border-color: var(--ac);
+}
+/* soft orange light behind the whole deck, so the section isn't a flat black void */
+#trk::before {
+  content: "";
+  position: absolute;
+  inset: -12% 8%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 52% 58% at 50% 56%, rgba(255, 77, 46, 0.2), transparent 72%);
 }
 .pn b {
-  font-size: clamp(70px, 12vw, 170px);
+  font-size: clamp(64px, 9vw, 130px);
   font-weight: 900;
   line-height: 0.8;
-  color: transparent;
+  color: rgba(255, 77, 46, 0.1);
   -webkit-text-stroke: 1.5px var(--ac);
 }
 .pn h3 {
@@ -637,7 +689,7 @@ body::after {
   margin-bottom: 10px;
 }
 .pn p {
-  color: #a9a69f;
+  color: #d3cdc2;
 }
 .pn:hover {
   border-color: var(--ac);
@@ -1051,6 +1103,14 @@ footer .big em {
   margin: 0 6vw;
   height: 2px;
   background: var(--ln);
+}
+.stk-n {
+  margin: -2.6vh 0 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: #b9b4aa;
+  pointer-events: none;
 }
 .hzb i {
   display: block;
@@ -1947,9 +2007,16 @@ html.lite .scan,
 html.lite .gf::before {
   animation: none;
 }
-html.lite h2,
-html.lite .pn {
+html.lite h2 {
   will-change: auto;
+}
+html.lite .pn {
+  box-shadow: none; /* cheaper on weak devices; the deck still works */
+}
+@media (max-width: 800px) {
+  .pn {
+    padding: 26px;
+  }
 }
 
 /* ---- "mid" tier (q1+): drop the effects that force the GPU to re-blend / re-mask the whole screen every frame ---- */

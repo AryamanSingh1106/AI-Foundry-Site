@@ -143,7 +143,7 @@ function flickerAt(ms) {
     ).join("") +
     INS.map(
       (p) =>
-        `<div class="pn"><b>+</b><div><h3>${p.title}</h3><p>${p.text}</p></div></div>`,
+        `<div class="pn ins"><b>+</b><div><h3>${p.title}</h3><p>${p.text}</p></div></div>`,
     ).join("");
   $("#pipe").insertAdjacentHTML(
     "beforeend",
@@ -1138,11 +1138,8 @@ function flickerAt(ms) {
     hzH = 1,
     pipeTop = 0,
     maxScroll = 1,
-    trkW = 0,
     cvL = 0,
     cvT = 0,
-    lastTx = 0,
-    cardX = [],
     h2C = [],
     h2H = [],
     h2Off = [];
@@ -1157,14 +1154,9 @@ function flickerAt(ms) {
     hzH = hz.offsetHeight;
     pipeTop = pipe.getBoundingClientRect().top + sc;
     maxScroll = Math.max(1, document.body.scrollHeight - innerHeight);
-    trkW = trk.scrollWidth;
     const r = cv.getBoundingClientRect();
     cvL = r.left;
     cvT = r.top + sc;
-    cardX = pns.map((n) => {
-      const b = n.getBoundingClientRect();
-      return b.left + b.width / 2 - lastTx;
-    });
     pxs.forEach((e, i) => {
       const b = e.getBoundingClientRect();
       h2C[i] = b.top + sc + b.height / 2 - (h2Off[i] || 0);
@@ -1186,7 +1178,7 @@ function flickerAt(ms) {
     root.classList.toggle("mid", q >= 1);
     root.classList.toggle("lite", q >= 2);
     if (q >= 2) {
-      pns.forEach((e) => (e.style.transform = ""));
+      lastStk = NaN; /* the deck keeps working on the lite tier; it just drops the extras */
       pxs.forEach((e, i) => {
         e.style.translate = "";
         h2Off[i] = 0;
@@ -1353,6 +1345,38 @@ function flickerAt(ms) {
     lastSpy = NaN,
     first = true;
   const stepOn = [];
+  /* ===== "Inside the Foundry" deck (ported from Motion Lab's 09.5 STACK) =====
+     Scroll through the pinned #hz section flicks the cards off the deck one by one, alternating left / right.
+     p = pinned progress 0..1; x = how many cards have gone (0 .. N-1); card i leaves while x goes from i to i+1.
+     The last card stays, and the final 8% of the scroll is a hold before the section unpins. */
+  const stkN = $("#stkn");
+  let lastStk = NaN,
+    lastStkLbl = "";
+  function stack(p, force) {
+    const N = pns.length;
+    if (!N) return;
+    const x = cl(p / 0.92, 0, 1) * (N - 1);
+    if (!force && x === lastStk) return;
+    lastStk = x;
+    for (let i = 0; i < N; i++) {
+      const el = pns[i];
+      const u = cl(x - i, 0, 1); /* 0 = on the deck, 1 = gone */
+      const depth = Math.min(3, Math.max(0, i - x)); /* how far behind the front card */
+      const dir = i % 2 ? 1 : -1;
+      el.style.visibility = u >= 0.99 ? "hidden" : "visible";
+      el.style.zIndex = N - i;
+      el.style.transform =
+        `translate(calc(-50% + ${(dir * u * u * 115).toFixed(2)}vw), calc(-50% + ${(4 - u * 7 + u * u * 34 - depth * 3.2).toFixed(2)}vh)) ` +
+        `rotate(${(dir * u * 36 + ((i % 3) - 1) * depth * 1.4).toFixed(2)}deg) scale(${(1 - depth * 0.04).toFixed(3)})`;
+      /* cards further back are slightly dimmer (skipped on the lite tier: filters are the costly part) */
+      el.style.filter = q < 2 && depth > 0 ? `brightness(${(1 - depth * 0.1).toFixed(3)})` : "";
+    }
+    const lbl = String(Math.min(N, Math.floor(x + 0.001) + 1)).padStart(2, "0") + " / " + String(N).padStart(2, "0");
+    if (lbl !== lastStkLbl) {
+      lastStkLbl = lbl;
+      stkN.textContent = lbl;
+    }
+  }
   function frame(t) {
     requestAnimationFrame(frame);
     if (perfTick) perfTick();
@@ -1421,15 +1445,8 @@ function flickerAt(ms) {
       }
       if (full || (sy > hzTop - innerHeight * 1.2 && sy < hzTop + hzH + innerHeight * 0.2)) {
         const qh = prog(hzTop, hzH, sy);
-        lastTx = -qh * (trkW - innerWidth);
-        trk.style.transform = `translateX(${lastTx}px)`;
         hzi.style.transform = `scaleX(${qh})`;
-        if (q < 2)
-          for (let i = 0; i < pns.length; i++) {
-            const c = (cardX[i] + lastTx - innerWidth / 2) / innerWidth;
-            if (full || Math.abs(c) < 1.3)
-              pns[i].style.transform = `perspective(1200px) rotateY(${c * -16}deg) scale(${1 - Math.min(0.2, Math.abs(c) * 0.14)})`;
-          }
+        stack(qh, full);
       }
       const pp = cl((innerHeight * 0.85 - (pipeTop - scrollY)) / (innerHeight * 0.5), 0, 1);
       if (pp !== lastPp) {

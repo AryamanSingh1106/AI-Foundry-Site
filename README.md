@@ -1,8 +1,8 @@
 # AI Foundry — Club Website
 
-A dynamic, animated, scroll-driven website for the AI Foundry club (Universal AI University).
+A frontend-only, animated, scroll-driven website for the AI Foundry club (Universal AI University).
 Plain HTML + CSS + JavaScript. No build step, no frameworks, no installs.
- 
+
 ## Run it
 - **Quick:** double-click `index.html`.
 - **Local server (recommended):** `npx serve .` or `python3 -m http.server`, then open the shown address.
@@ -132,5 +132,3 @@ git commit -m "Add projects, photos, join form, footer links"
 git push
 ```
 Robocopy exit codes 0-7 mean success. Only add `/MIR` if you want files you removed from the package to be deleted in the repo too, and then ALWAYS keep `/XD .git`.
-
-
