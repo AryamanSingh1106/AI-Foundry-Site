@@ -6,6 +6,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from ..config import get_settings
 from ..db import get_db
 from ..ratelimit import limiter
+from ..storage import SaveFailed, save_application
 from ..validation import MAX_RESUME_BYTES, validate_application, validate_resume
 
 router = APIRouter()
@@ -44,9 +45,19 @@ async def join(
 
     # Random filename: never trust the one the user sent.
     path = f"{uuid.uuid4()}.{ext}"
-    db = get_db()
-    db.storage.from_(get_settings().resume_bucket).upload(
-        path, data, {"content-type": CONTENT_TYPES[ext]}
-    )
-    db.table("applications").insert({**values, "resume_path": path}).execute()
+    try:
+        save_application(
+            get_db(),
+            get_settings().resume_bucket,
+            path,
+            data,
+            CONTENT_TYPES[ext],
+            values,
+        )
+    except SaveFailed:
+        # Nothing was kept. Tell the visitor to try again instead of showing a raw server error.
+        raise HTTPException(
+            status_code=503,
+            detail=["We couldn't save your application right now. Please try again in a minute."],
+        )
     return {"ok": True}

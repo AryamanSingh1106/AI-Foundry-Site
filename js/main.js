@@ -128,8 +128,20 @@ function flickerAt(ms) {
   /* k: 'up' | 'past'.  r: optional link (registration for upcoming, recap for past) */
   const $ = (s) => document.querySelector(s),
     $$ = (s) => [...document.querySelectorAll(s)];
+  /* All content (data.js or the database) is treated as plain text: escH() makes it safe to place inside HTML.
+     U() does the same for links and image addresses, and also drops anything that is not http(s)/mailto/relative
+     (for example javascript:), so edited content can never run code on the page. */
+  const escH = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const safeUrl = (u) => {
+    const v = String(u ?? "").trim();
+    const m = v.match(/^([a-z][a-z0-9+.-]*):/i);
+    return !m || /^(https?|mailto)$/i.test(m[1]) ? v : "";
+  };
+  const U = (u) => escH(safeUrl(u));
+  const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
   const card = (n, t, p, i) =>
-    `<div class="card rv" style="--d:${(i % 3) * 0.1}s"><span class="num">${n}</span><h3>${t}</h3><p>${p}</p></div>`;
+    `<div class="card rv" style="--d:${(i % 3) * 0.1}s"><span class="num">${escH(n)}</span><h3>${escH(t)}</h3><p>${escH(p)}</p></div>`;
   $("#why").innerHTML = WHY.map((w, i) =>
     card("0" + (i + 1), w.title, w.text, i),
   ).join("");
@@ -139,24 +151,22 @@ function flickerAt(ms) {
   $("#trk").innerHTML =
     PAN.map(
       (p) =>
-        `<div class="pn"><b>${p.num}</b><div><h3>${p.title}</h3><p>${p.text}</p></div></div>`,
+        `<div class="pn"><b>${escH(p.num)}</b><div><h3>${escH(p.title)}</h3><p>${escH(p.text)}</p></div></div>`,
     ).join("") +
     INS.map(
       (p) =>
-        `<div class="pn ins"><b>+</b><div><h3>${p.title}</h3><p>${p.text}</p></div></div>`,
+        `<div class="pn ins"><b>+</b><div><h3>${escH(p.title)}</h3><p>${escH(p.text)}</p></div></div>`,
     ).join("");
   $("#pipe").insertAdjacentHTML(
     "beforeend",
     PIPE.map(
-      (p) => `<div class="s"><h4>${p.title}</h4><p>${p.text}</p></div>`,
+      (p) => `<div class="s"><h4>${escH(p.title)}</h4><p>${escH(p.text)}</p></div>`,
     ).join(""),
   );
-  const escH = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   function renderPeople() {
     $("#col").innerHTML = COLLABS.map(
       (c, i) =>
-        `<div class="rv ${c.real ? "real" : ""}" style="--d:${(i % 4) * 0.09}s">${c.logo ? `<img src="${c.logo}" alt="${c.name}">` : c.name}</div>`,
+        `<div class="rv ${c.real ? "real" : ""}" style="--d:${(i % 4) * 0.09}s">${c.logo ? `<img src="${U(c.logo)}" alt="${escH(c.name)}">` : escH(c.name)}</div>`,
     ).join("");
     /* members cylinder: one .cy-p card per member; the 3D layout (angle, radius, scroll length) is set in cyLayout() */
     $("#members").style.display = MEMBERS.length ? "" : "none";
@@ -168,12 +178,12 @@ function flickerAt(ms) {
       .map(([m, i, dup]) => {
         const name = String(m.name || "Member").trim() || "Member";
         const no = String(i + 1).padStart(2, "0");
-        return `<div class="cy-p" style="--h:${8 + ((i * 7) % 26)}" data-nm="${escH(name)}" data-i="${i}" data-t="${MEMBERS.length}"${dup ? ' aria-hidden="true"' : ""}><i class="cy-slot"></i><div class="cy-ph"><span class="cy-in">${escH([...name][0].toUpperCase())}</span>${m.photo ? `<img src="${escH(m.photo)}" alt="${escH(name)}" loading="lazy" decoding="async" onerror="this.remove()">` : ""}<small class="mono cy-ix">${no}</small><em class="mono cy-mk">AF</em></div><div class="cy-tx"><b>${escH(name)}</b><span class="mono">${escH(m.role || "Member")}</span></div></div>`;
+        return `<div class="cy-p" style="--h:${8 + ((i * 7) % 26)}" data-nm="${escH(name)}" data-i="${i}" data-t="${MEMBERS.length}"${dup ? ' aria-hidden="true"' : ""}><i class="cy-slot"></i><div class="cy-ph"><span class="cy-in">${escH([...name][0].toUpperCase())}</span>${m.photo ? `<img src="${U(m.photo)}" alt="${escH(name)}" loading="lazy" decoding="async" onerror="this.remove()">` : ""}<small class="mono cy-ix">${no}</small><em class="mono cy-mk">AF</em></div><div class="cy-tx"><b>${escH(name)}</b><span class="mono">${escH(m.role || "Member")}</span></div></div>`;
       })
       .join("");
     $("#lead").innerHTML = LEADERS.map(
       (l, i) =>
-        `<div class="rv" style="--d:${i * 0.15}s"><div class="ph"><img src="${l.photo}" alt="${l.name}" loading="lazy" decoding="async"></div><h3>${l.name}</h3><span class="mono ac">${l.role}</span><a href="mailto:${l.email}">${l.email}</a></div>`,
+        `<div class="rv" style="--d:${i * 0.15}s"><div class="ph"><img src="${U(l.photo)}" alt="${escH(l.name)}" loading="lazy" decoding="async"></div><h3>${escH(l.name)}</h3><span class="mono ac">${escH(l.role)}</span><a href="mailto:${escH(l.email)}">${escH(l.email)}</a></div>`,
     ).join("");
   }
   renderPeople();
@@ -190,21 +200,21 @@ function flickerAt(ms) {
       ["Venue", e.v],
     ]
       .filter((m) => m[1])
-      .map((m) => `<div><span class="mono">${m[0]}</span><b>${m[1]}</b></div>`)
+      .map((m) => `<div><span class="mono">${escH(m[0])}</span><b>${escH(m[1])}</b></div>`)
       .join("");
     $("#ml").textContent = e.l || e.x;
     media(e);
-    $("#mh").innerHTML = (e.hl || []).map((h) => `<li>${h}</li>`).join("");
+    $("#mh").innerHTML = (e.hl || []).map((h) => `<li>${escH(h)}</li>`).join("");
     const r = $("#mr");
     if (e.k === "up") {
       r.style.display = "";
       r.href =
-        e.r ||
+        safeUrl(e.r) ||
         `mailto:vidhayank.singh@universalai.in?subject=${encodeURIComponent("Interested in " + e.t)}`;
       r.textContent = e.r ? "Register now →" : "Register interest →";
     } else if (e.r) {
       r.style.display = "";
-      r.href = e.r;
+      r.href = safeUrl(e.r);
       r.textContent = "View recap →";
     } else r.style.display = "none";
     md.classList.add("on");
@@ -369,11 +379,11 @@ function flickerAt(ms) {
     }
   };
   function media(o) {
-    $("#mi").innerHTML = o.img ? `<img src="${o.img}" alt="">` : "";
+    $("#mi").innerHTML = o.img ? `<img src="${U(o.img)}" alt="">` : "";
     $("#mg").innerHTML = (o.gallery || [])
       .map(
         (g) =>
-          `<a href="${g}" target="_blank" rel="noopener"><img src="${g}" alt="" loading="lazy"></a>`,
+          `<a href="${U(g)}" target="_blank" rel="noopener"><img src="${U(g)}" alt="" loading="lazy"></a>`,
       )
       .join("");
   }
@@ -389,7 +399,7 @@ function flickerAt(ms) {
     .filter(([k, u]) => ICON[k] && u)
     .map(
       ([k, u]) =>
-        `<a href="${u}" target="_blank" rel="noopener" aria-label="${k}">${ICON[k]}</a>`,
+        `<a href="${U(u)}" target="_blank" rel="noopener" aria-label="${escH(k)}">${ICON[k]}</a>`,
     )
     .join("");
   $("#cmail").textContent = CONFIG.CLUB_EMAIL;
@@ -400,7 +410,7 @@ function flickerAt(ms) {
       .filter(([p]) => p.k === k)
       .map(
         ([p, i], n) =>
-          `<div class="pc rv ${p.k}" data-i="${i}" tabindex="0" role="button" style="--d:${n * 0.1}s;--p:${p.p || 100}%"><div class="cv ${p.img ? "" : "none"}">${p.img ? `<img src="${p.img}" alt="" loading="lazy">` : "<span>✦</span>"}</div><div class="top"><span class="ty mono">${p.type}</span><span class="mono" style="color:var(--mut)">${String(i + 1).padStart(2, "0")}</span></div>${p.k === "done" ? '<div class="stamp">FORGED</div>' : ""}<h3>${p.t}</h3><p>${p.x}</p><div class="tg">${(p.tech || []).map((x) => `<span>${x}</span>`).join("")}</div>${p.k === "on" ? `<div class="pct mono"><span>Heat</span><b>${p.p}%</b></div><div class="heat"><i></i></div>` : ""}<div class="stg">${PIPE.map((s, j) => `<i class="${j <= cur(p) ? "on" : ""} ${p.k === "on" && j === p.st ? "now" : ""}"></i>`).join("")}</div><div class="stl">${PIPE.map((s, j) => `<span class="${j <= cur(p) ? "on" : ""}">${s.title}</span>`).join("")}</div></div>`,
+          `<div class="pc rv ${p.k}" data-i="${i}" tabindex="0" role="button" style="--d:${n * 0.1}s;--p:${num(p.p, 100) || 100}%"><div class="cv ${p.img ? "" : "none"}">${p.img ? `<img src="${U(p.img)}" alt="" loading="lazy">` : "<span>✦</span>"}</div><div class="top"><span class="ty mono">${escH(p.type)}</span><span class="mono" style="color:var(--mut)">${String(i + 1).padStart(2, "0")}</span></div>${p.k === "done" ? '<div class="stamp">FORGED</div>' : ""}<h3>${escH(p.t)}</h3><p>${escH(p.x)}</p><div class="tg">${(p.tech || []).map((x) => `<span>${escH(x)}</span>`).join("")}</div>${p.k === "on" ? `<div class="pct mono"><span>Heat</span><b>${num(p.p)}%</b></div><div class="heat"><i></i></div>` : ""}<div class="stg">${PIPE.map((s, j) => `<i class="${j <= cur(p) ? "on" : ""} ${p.k === "on" && j === p.st ? "now" : ""}"></i>`).join("")}</div><div class="stl">${PIPE.map((s, j) => `<span class="${j <= cur(p) ? "on" : ""}">${escH(s.title)}</span>`).join("")}</div></div>`,
       )
       .join("");
     $("#pc1").textContent = PROJECTS.filter((p) => p.k === "on").length;
@@ -451,20 +461,20 @@ function flickerAt(ms) {
     $("#mt").textContent = p.t;
     $("#mm").innerHTML = [
       ["Stage", PIPE[p.k === "done" ? 3 : p.st].title],
-      ["Progress", p.k === "on" ? p.p + "%" : "Completed"],
+      ["Progress", p.k === "on" ? num(p.p) + "%" : "Completed"],
       ["Lead", p.lead],
       ["Timeline", p.d],
     ]
       .filter((m) => m[1])
-      .map((m) => `<div><span class="mono">${m[0]}</span><b>${m[1]}</b></div>`)
+      .map((m) => `<div><span class="mono">${escH(m[0])}</span><b>${escH(m[1])}</b></div>`)
       .join("");
     $("#ml").textContent = p.l || p.x;
     media(p);
-    $("#mh").innerHTML = (p.hl || []).map((h) => `<li>${h}</li>`).join("");
+    $("#mh").innerHTML = (p.hl || []).map((h) => `<li>${escH(h)}</li>`).join("");
     const r = $("#mr");
     if (p.r) {
       r.style.display = "";
-      r.href = p.r;
+      r.href = safeUrl(p.r);
       r.textContent = p.k === "done" ? "View outcome →" : "Follow progress →";
     } else r.style.display = "none";
     md.classList.add("on");
@@ -486,22 +496,22 @@ function flickerAt(ms) {
       .filter(([e]) => e.k === k)
       .map(
         ([e, i]) =>
-          `<div class="ev rv" data-i="${i}" tabindex="0" role="button"><span class="mono ac">${e.d}</span><div><h3>${e.t}</h3><p>${e.x}</p></div>${e.img ? `<div class="th"><img src="${e.img}" alt="" loading="lazy"></div>` : '<div class="th none"><span>✦</span></div>'}<span class="ar">↗</span></div>`,
+          `<div class="ev rv" data-i="${i}" tabindex="0" role="button"><span class="mono ac">${escH(e.d)}</span><div><h3>${escH(e.t)}</h3><p>${escH(e.x)}</p></div>${e.img ? `<div class="th"><img src="${U(e.img)}" alt="" loading="lazy"></div>` : '<div class="th none"><span>✦</span></div>'}<span class="ar">↗</span></div>`,
       )
       .join("");
   }
   function renderPatron() {
-    $("#pimg").src = PATRON.photo;
+    $("#pimg").src = safeUrl(PATRON.photo);
     $("#pimg").alt = PATRON.name;
     $("#pq").innerHTML = PATRON.message
       .map(
         (x, i, a) =>
-          `<p${i === a.length - 1 ? ' class="ac"' : ""}>${i === 0 ? "“" : ""}${x}${i === a.length - 1 ? "”" : ""}</p>`,
+          `<p${i === a.length - 1 ? ' class="ac"' : ""}>${i === 0 ? "“" : ""}${escH(x)}${i === a.length - 1 ? "”" : ""}</p>`,
       )
       .join("");
     $("#pn").textContent = PATRON.name;
     $("#pr").textContent = PATRON.role;
-    $("#ps").src = PATRON.signature;
+    $("#ps").src = safeUrl(PATRON.signature);
   }
   renderPatron();
   let evK = "up",
@@ -531,7 +541,7 @@ function flickerAt(ms) {
     $("#mtxt").innerHTML = MANIFESTO.split(" ")
       .map((w) => {
         const h = w.startsWith("*");
-        return `<i class="${h ? "hot" : ""}">${w.replace("*", "")}</i> `;
+        return `<i class="${h ? "hot" : ""}">${escH(w.replace("*", ""))}</i> `;
       })
       .join("");
     $$("#mtxt i").forEach((i) => words.push(i));

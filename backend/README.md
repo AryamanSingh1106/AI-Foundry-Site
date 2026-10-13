@@ -10,6 +10,8 @@ FastAPI + Supabase (Postgres + Storage). Two public endpoints:
 ```
 app/
   main.py        app setup, CORS, rate limiting
+  clientip.py    finds the real visitor IP behind Render's proxy
+  storage.py     saves resume + row together, cleans up on failure
   config.py      reads secrets from .env
   db.py          Supabase connection
   mapping.py     DB columns -> the short keys main.js expects (t, x, l, hl ...)
@@ -70,6 +72,11 @@ No admin panel yet: use Supabase **Table Editor**.
 - `.env` is in `.gitignore`. Keep it that way.
 - RLS is on with no policies, so only this server can touch the data.
 - The Join endpoint is limited to 5 requests/hour per IP and re-validates everything.
+  On Render the real visitor IP comes from the `CF-Connecting-IP` header (see `app/clientip.py`); the
+  proxy's own address is never used, so visitors are counted separately. `X-Forwarded-For` is ignored on
+  purpose because visitors can fake it.
+- If a resume uploads but the database save fails, the file is deleted again (`app/storage.py`) and the
+  visitor gets a "please try again" message, so storage never keeps resumes without an application.
 - Before editable content goes public: main.js puts text into the page with `innerHTML`.
   Only trusted people should have Supabase dashboard access until that's escaped.
 
