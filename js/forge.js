@@ -20,7 +20,7 @@
   var CFG = {
     SPEED: 1.1,              // 1.1 = about 5 s. 1.4 = faster, 0.8 = slower
     SHOW_WORDS: true,        // small word + meaning under the logo while it builds
-    SOUND: true,             // synthesized sound effects (start only after the click, so browsers allow it)
+    SOUND: true,             // synthesized sound effects. They start by themselves; if the browser blocks that, they start on the first tap / key press
     VOLUME: 0.8,             // 0 - 1
     ANIME_URL: "https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js",
     THREE_URL: "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -264,7 +264,7 @@
     try {
       var cvs = $("#fb-gl"), uni = false; if (!cvs) return;
       var r = new T.WebGLRenderer({ canvas: cvs, antialias: false, alpha: uni, powerPreference: "high-performance" });
-      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      r.setPixelRatio(1);                       /* the background is soft light: it never needs more than 1 pixel per CSS pixel */
       if (uni) r.setClearColor(0x000000, 0);
       var scn = new T.Scene(), cm = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
       var U = { uTime: { value: 0 }, uTravel: { value: 0 }, uSpeed: { value: 0 }, uGlow: { value: 0 }, uFlash: { value: 0 }, uRing: { value: -1 }, uRes: { value: new T.Vector2(1, 1) } };
@@ -275,7 +275,7 @@
       var N = (window.innerWidth < 700) ? 150 : 320, g = new T.BufferGeometry(), pos = new Float32Array(N * 3), seed = new Float32Array(N * 4);
       for (var i = 0; i < N; i++) { seed[i * 4] = Math.random(); seed[i * 4 + 1] = Math.random(); seed[i * 4 + 2] = Math.random(); seed[i * 4 + 3] = Math.random(); }
       g.setAttribute("position", new T.BufferAttribute(pos, 3)); g.setAttribute("aSeed", new T.BufferAttribute(seed, 4));
-      var EU = { uTime: U.uTime, uGlow: U.uGlow, uPx: { value: Math.min(window.devicePixelRatio || 1, 1.5) } };
+      var EU = { uTime: U.uTime, uGlow: U.uGlow, uPx: { value: 1 } };
       var pts = new T.Points(g, new T.ShaderMaterial({ uniforms: EU, vertexShader: VERT_EMB, fragmentShader: FRAG_EMB, transparent: true, depthTest: false, depthWrite: false, blending: T.AdditiveBlending }));
       pts.frustumCulled = false; scn.add(pts);
       GL = { r: r, scn: scn, cm: cm, U: U, uni: uni };
@@ -286,8 +286,8 @@
   }
 
   /* ===================== canvas particles (sparks + embers) ===================== */
-  var cv, ctx, DPR = Math.min(window.devicePixelRatio || 1, 2);
-  function fxResize() { if (!cv) return; DPR = Math.min(window.devicePixelRatio || 1, curTier === 0 ? 2 : 1); cv.width = innerWidth * DPR; cv.height = innerHeight * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+  var cv, ctx, DPR = Math.min(window.devicePixelRatio || 1, 1.25);
+  function fxResize() { if (!cv) return; DPR = Math.min(window.devicePixelRatio || 1, curTier === 0 ? 1.25 : 1); cv.width = innerWidth * DPR; cv.height = innerHeight * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
   window.addEventListener("resize", fxResize);
   var sprite = (function () {
     var c = document.createElement("canvas"); c.width = c.height = 64; var g = c.getContext("2d");
@@ -389,10 +389,37 @@
     }
     c.globalAlpha = 1; c.globalCompositeOperation = "source-over";
   }
+  /* LIVE QUALITY GOVERNOR: the intro watches its own frame time. If the device cannot keep up (average frame > ~24 ms, i.e. under ~40 fps),
+     it steps down while it is playing: 1) no WebGL background, no heat haze, no additive blending, lower resolution, fewer particles
+     2) no extruded depth / paper-edge layers, no blend-mode shine. The step is remembered (floorTier) so later runs start lighter. */
+  var perf = { ema: 16.7, t0: 0, last: 0, lvl: 0 }, floorTier = 0;
+  function downgrade(l) {
+    perf.lvl = l; perf.last = performance.now();
+    if (l >= 1) {
+      floorTier = Math.max(floorTier, 1);
+      if (curTier === 0) {
+        curTier = 1;
+        if (GL) { try { window.removeEventListener("resize", GL.onResize); GL.r.dispose(); } catch (e) {} GL = null; }
+        var glc = $("#fb-gl"); if (glc) glc.style.display = "none";
+        var fi = flameEl && $(".fb-in", flameEl); if (fi) fi.style.filter = "";
+        fxResize(); if (parts.length > 300) parts.length = 300;
+      }
+      overlay.classList.add("fb-lite");
+    }
+    if (l >= 2) overlay.classList.add("fb-lite2");
+    fire("fb:slow");
+  }
+  function adapt(now, ms) {
+    if (perf.lvl >= 2 || !(ms > 0) || ms > 1500) return;          /* ignore background-tab gaps */
+    perf.ema = perf.ema * .9 + Math.min(ms, 100) * .1;           /* a single huge frame counts as 100 ms, not more */
+    if (!perf.t0) perf.t0 = now;
+    if (now - perf.t0 < 500 || now - perf.last < 600) return;      /* let the start-up hitch pass; wait between steps */
+    if (perf.ema > 24) downgrade(perf.lvl + 1);
+  }
   var lastT = 0, rafId = 0;
   function frame(now) {
     rafId = requestAnimationFrame(frame);
-    var dt = Math.min(40, now - (lastT || now)) / 16.67; lastT = now;
+    var ms = now - (lastT || now), dt = Math.min(40, ms) / 16.67; lastT = now;
     if (sway.on) { tilt.tx = Math.sin(now / 700) * 3; tilt.ty = Math.sin(now / 1000) * 9; }
     tilt.rx = lerp(tilt.rx, tilt.tx, .08 * dt); tilt.ry = lerp(tilt.ry, tilt.ty, .08 * dt);
     applyCam();
@@ -409,6 +436,7 @@
     }
     drawParts(ctx, now, dt);
     drawRays();
+    adapt(now, ms);
   }
 
   /* ===================== sound design (Web Audio, fully synthesized - no audio files) ===================== */
@@ -494,7 +522,6 @@
   /* Browsers only let sound start after the visitor has pressed, tapped or typed something. Until then the audio context stays "suspended".
      This starts it on the first such gesture (and keeps listening until it really is running), so an intro that began silently gets its sound
      from that moment on. The audio graph itself is built in idle time, so no gesture does heavy work. */
-  var sndChip = null;
   function onGesture() {
     try {
       if (AC) { if (AC.state === "suspended") AC.resume(); }
@@ -504,17 +531,6 @@
   }
   var GESTURES = ["pointerdown", "keydown", "touchend"];
   GESTURES.forEach(function (ev) { window.addEventListener(ev, onGesture, { capture: true, passive: true }); });
-  /* if the browser is still blocking sound shortly after the forge intro starts, say how to turn it on (it hides itself once the sound starts) */
-  function soundHint() {
-    if (!CFG.SOUND || !AC) return;
-    setTimeout(function () {
-      if (!running || !AC || AC.state === "running" || sndChip || !overlay) return;
-      sndChip = document.createElement("div"); sndChip.id = "fb-snd"; sndChip.textContent = "Click anywhere for sound"; overlay.appendChild(sndChip);
-      var h = function () { if (AC && AC.state === "running") { hideSndChip(); AC.removeEventListener("statechange", h); } };
-      AC.addEventListener("statechange", h);
-    }, 500);
-  }
-  function hideSndChip() { if (sndChip && sndChip.parentNode) sndChip.parentNode.removeChild(sndChip); sndChip = null; }
   function sx(name) {                         /* play a named sound right now, but only while the audio is really running: sounds fired while the browser still blocks audio would
                                                  otherwise pile up and all burst out together, late, the moment the visitor unlocks it */
     if (!AC || !SFX) return;
@@ -550,13 +566,14 @@
   function begin(tier) {
     if (running) return;
     running = true;
+    perf = { ema: 16.7, t0: 0, last: performance.now(), lvl: 0 }; overlay.classList.remove("fb-lite", "fb-lite2");
     curTier = tier; SEED = Math.random() * 1000; mir = Math.random() < .5 ? -1 : 1;   /* every run scatters the pieces differently and swings in from a random side */
     lastFocus = document.activeElement;
     root.classList.add("fb-run");
     fire("fb:start");
     startY = window.pageYOffset || document.documentElement.scrollTop || 0;
     document.documentElement.style.scrollBehavior = "auto";
-    fxResize(); applyGhost(); audioOn(); soundHint();
+    fxResize(); applyGhost(); audioOn();
     cam.rx = 58; cam.rz = -32 * mir; cam.sc = .8; rays.o = 0; tilt.rx = tilt.ry = tilt.tx = tilt.ty = 0; sway.on = 0;
     fxs.speed = 0; fxs.glow = 0; fxs.flash = 0; fxs.ring = -1;
     card.style.opacity = 0; anime({ targets: card, opacity: [0, 1], duration: S(450), easing: "easeOutQuad" }); overlay.style.opacity = "";   /* the logo emerges from the dark instead of cutting in */ fly.x = fly.y = 0; setMask(null); irisEl.style.opacity = 0; capEl.style.opacity = 1; ringTxt.style.opacity = 0;
@@ -642,7 +659,7 @@
       emitters.push({ rate: 34, acc: 0, w: 54, o: { kind: "ember", speed: 2.2, angle: -Math.PI / 2, spread: .8, size: 1.8, life: 1900 },
         at: function () { var q = rectOf(flameEl); return { x: q.left + q.width * .5, y: q.top + q.height * .3 }; } });
       var h = { s: 0, f: .03 };
-      if (tier === 0) {                                  /* the wobbling heat-haze filter is the most expensive effect: full tier only */
+      if (curTier === 0) {                               /* the wobbling heat-haze filter is the most expensive effect: full tier only */
       loops.push(anime({ targets: h, s: [7, 12], f: [.03, .05], duration: 600, direction: "alternate", loop: true, easing: "easeInOutSine",
         update: function () { var nw = performance.now(); if (nw - (h.t || 0) < 62) return; h.t = nw; turb.setAttribute("baseFrequency", "0.012 " + h.f.toFixed(3)); disp.setAttribute("scale", h.s.toFixed(1)); } }));
       $(".fb-in", flameEl).style.filter = "url(#fbHeatF)";
@@ -676,6 +693,7 @@
       anime({ targets: fxs, flash: [.55, 0], duration: S(420), easing: "easeOutQuad" });
       var wv = { p: 0 };
       anime({ targets: wv, p: [-.2, 1.2], duration: S(520), easing: "easeInOutSine", update: function () {
+        if (curTier !== 0) return;                      /* per-piece glow filters: full tier only */
         stepLayers.forEach(function (l) {
           if (l.dataset.id === "flame") return;
           var g = Math.max(0, 1 - Math.abs(+l.dataset.cx - wv.p) / .22), inner = l.querySelector(".fb-in:not(.fb-ex)");
@@ -741,12 +759,12 @@
     stepLayers.forEach(function (l) { $$(".fb-in", l).forEach(function (f) { f.style.filter = ""; f.style.transform = ""; try { f.getAnimations && f.getAnimations().forEach(function (a) { a.cancel(); }); } catch (e) {} }); });
     var fi = flameEl && $(".fb-in", flameEl); if (fi) fi.style.filter = "";
     try { anime.remove(layers); anime.remove([cam, shk, punch, scr, fxs, rays, card, heatEl, glowEl, gridEl, plateGlow, shineEl, ringTxt, capEl].concat(barsEl)); } catch (e) {}
-    hideSndChip(); rail.style.transform = "scaleY(0)"; barsEl.forEach(function (b) { b.style.transform = ""; }); sway.on = 0; shk.v = 0; punch.v = 0; rays.o = 0; floorEm = null;
+    rail.style.transform = "scaleY(0)"; barsEl.forEach(function (b) { b.style.transform = ""; }); sway.on = 0; shk.v = 0; punch.v = 0; rays.o = 0; floorEm = null;
     $$(".fb-ring, .fb-flash").forEach(function (r) { if (r.parentNode) r.parentNode.removeChild(r); });   /* shockwave rings never outlive the animation */
   }
   function finish() {
     if (!running) return;
-    audioOff(); hideSndChip();
+    audioOff();
     try { tl && tl.pause(); } catch (e) {}
     window.scrollTo(0, 0);
     document.documentElement.style.scrollBehavior = "";
@@ -1195,7 +1213,7 @@
   /* start({ tier, onFail }) -> true if the animation is (or will be) playing, false if the caller should scroll itself */
   function start(opts) {
     opts = opts || {};
-    var tier = opts.tier || 0;
+    var tier = Math.max(opts.tier || 0, floorTier);
     if (running || starting) return true;
     if (tier >= 2 || reduceMotion() || !window.Promise) return false;
     function go() {

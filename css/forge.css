@@ -306,33 +306,6 @@ html.fb-run .cur {
   }
 }
 
-/* shown only while the browser still blocks sound; hides itself once the sound starts */
-#fb-snd {
-  position: absolute;
-  left: 50%;
-  bottom: calc(6.5vh + 16px);
-  transform: translateX(-50%);
-  z-index: 6;
-  padding: 7px 14px;
-  border: 1px solid rgba(243, 241, 236, 0.22);
-  border-radius: 999px;
-  color: rgba(243, 241, 236, 0.62);
-  font: 400 11px "DM Mono", monospace;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  pointer-events: none;
-  animation: fbSndIn 0.6s ease both;
-}
-@keyframes fbSndIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 /* cinematic letterbox bars for the forge intro (forge.js slides them in and out; no vignette layer: the background gradient already darkens the edges) */
 .fb-bar {
   position: absolute;
@@ -488,4 +461,16 @@ html.fb-run .cur {
   #fbs {
     display: none !important;
   }
+}
+
+/* live quality steps (set by forge.js when the device cannot keep up) */
+#fb-overlay.fb-lite #fb-shine {
+  display: none;
+}
+#fb-overlay.fb-lite #fb-glowplate {
+  mix-blend-mode: normal;
+}
+#fb-overlay.fb-lite2 .fb-edge,
+#fb-overlay.fb-lite2 .fb-ex {
+  display: none;
 }

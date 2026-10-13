@@ -858,8 +858,19 @@ function flickerAt(ms) {
     if (!forge) return lampIntro();
     load.classList.add("ld-fast"); /* plain black screen while the animation downloads (normally well under a second) */
     const giveUp = new Promise((r) => setTimeout(() => r(false), 2500));
+    /* the intro starts one step lighter on machines that usually struggle with it (fewer than 8 cores, or Intel integrated graphics):
+       no WebGL background (so the 3D library is not even downloaded), fewer 3D layers, no heat haze. It also steps down by itself while
+       playing if the frame rate drops (see the live governor in forge.js). Strong machines still get the full version. */
+    let iq = 0;
+    const introTier = () =>
+      forced !== null
+        ? q
+        : Math.max(
+            q,
+            (navigator.hardwareConcurrency || 8) < 8 || (/intel/i.test(renderer) && !/\barc\b/i.test(renderer)) ? 1 : 0,
+          );
     Promise.race([AIForge.load(), giveUp])
-      .then((ok) => (ok && q < 2 ? AIForge.prepare(q, 1500) : false))
+      .then((ok) => ((iq = introTier()), ok && iq < 2 ? AIForge.prepare(iq, 1500) : false))
       .catch(() => false)
       .then((ok) => {
         if (!ok) return lampIntro();
@@ -876,7 +887,7 @@ function flickerAt(ms) {
           load.classList.remove("go");
           lampIntro();
         };
-        if (!AIForge.start({ tier: q, onFail: lampInstead })) lampIntro();
+        if (!AIForge.start({ tier: iq, onFail: lampInstead })) lampIntro();
       });
   }
   intro();
@@ -1437,8 +1448,12 @@ function flickerAt(ms) {
     introBusy = true;
     if (load) load.classList.add("go"); /* the forge overlay is opaque, so nothing flashes */
   });
+  /* the intro had to lower its own quality => this device is slow: start the page itself one tier lighter too */
+  let slowIntro = false;
+  addEventListener("fb:slow", () => (slowIntro = true));
   addEventListener("fb:end", () => {
     introBusy = false;
+    if (slowIntro && forced === null && q < 1) setQuality(1);
     if (!started) startHero(); /* intro skipped before the page opened */
     resetGovernor();
   });
