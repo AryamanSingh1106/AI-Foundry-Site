@@ -8,10 +8,10 @@ window.SITE_DATA = {
   /* Settings. CLUB_EMAIL = public contact email shown in the footer. SOCIAL = your Instagram / Discord / LinkedIn links (replace the placeholders).
      EMAIL = where Join requests go (fallback). FORM_ENDPOINT = form-service URL. DATA_URL = JSON API URL (leave '' to use this file). */
   CONFIG: {
-    EMAIL: "aifoundry0@gmail.com",
+    EMAIL: "AIFOUNDRY@universalai.in",
     FORM_ENDPOINT: "https://ai-foundry-site.onrender.com/api/join",
     DATA_URL: "https://ai-foundry-site.onrender.com/api/site",
-    CLUB_EMAIL: "aifoundry0@gmail.com",
+    CLUB_EMAIL: "AIFOUNDRY@universalai.in",
     SOCIAL: {
       instagram: "https://www.instagram.com/aifoundryuai/",
       discord: "https://discord.gg/Uj2aYypew",
