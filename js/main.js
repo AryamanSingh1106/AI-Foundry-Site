@@ -152,11 +152,11 @@ function flickerAt(ms) {
   $("#trk").innerHTML =
     PAN.map(
       (p) =>
-        `<div class="pn"><b>${escH(p.num)}</b><div><h3>${escH(p.title)}</h3><p>${escH(p.text)}</p></div></div>`,
+        `<div class="pn"><b>${escH(p.num)}</b><div><h3>${escH(p.title)}</h3><p>${escH(p.text)}</p></div><i class="pn-dim"></i></div>`,
     ).join("") +
     INS.map(
       (p) =>
-        `<div class="pn ins"><b>+</b><div><h3>${escH(p.title)}</h3><p>${escH(p.text)}</p></div></div>`,
+        `<div class="pn ins"><b>+</b><div><h3>${escH(p.title)}</h3><p>${escH(p.text)}</p></div><i class="pn-dim"></i></div>`,
     ).join("");
   $("#pipe").insertAdjacentHTML(
     "beforeend",
@@ -1026,7 +1026,7 @@ function flickerAt(ms) {
     cur.classList.toggle("sm", s);
     cur.classList.toggle(
       "big",
-      !s && !!e.target.closest("a,button,.m,.ev,.pc"),
+      !s && !!e.target.closest("a,button,.m,.ev,.pc,.kx-scene,.kx-toc li"),
     );
   });
   /* hero particle typography */
@@ -1317,10 +1317,13 @@ function flickerAt(ms) {
   }
   /* =====================================================================================
      M1-M6 missions: a 3D cube, one face per mission.
-     Scrolling tumbles the cube from face to face. Each turn is a spring: it snaps, overshoots a little and
-     settles with a thud (a dip in scale, a ripple on the floor). The mouse tilts the whole thing.
-     Six missions = a real cube. Any other number becomes a prism with that many faces, so it still works
-     if missions are added or removed. Faces, the contents list and the scroll length come from the data.
+     - Scrolling tumbles the cube from face to face. Each turn is a spring: it snaps, overshoots a little and
+       settles with a thud (a dip in scale, a pulse and a ripple on the floor).
+     - On arrival the six faces fly in from apart and slam together.
+     - You can grab and spin it; it flings, then springs back to the current mission. The mouse tilts it.
+     - The list on the left is clickable (it scrolls to that mission), and a ring of nodes circles the cube.
+     Six missions = a real cube. Any other number becomes a prism with that many faces, so it still works if
+     missions are added or removed. Faces, list, ring and scroll length all come from the data.
      ===================================================================================== */
   const ms = $("#ms"),
     msN = $("#msn"),
@@ -1329,7 +1332,11 @@ function flickerAt(ms) {
     kbCube = $("#kxcube"),
     kbToc = $("#kxtoc"),
     kbRip = $("#kxrip"),
-    kbSr = $("#kxsr");
+    kbSr = $("#kxsr"),
+    kbFloor = $("#kxfloor"),
+    kbGl = $("#kxgl"),
+    kbRing = $("#kxring"),
+    kbHint = $("#kxhint");
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
   let msTop = 0,
     msH = 1,
@@ -1339,11 +1346,22 @@ function flickerAt(ms) {
     kbFaces = [],
     kbOri = [],
     kbA = 0,
+    kbCubeMode = true,
+    kbStep = 60,
     kbLand = false,
     kbShade = [],
+    kbDots = [],
+    kbStarted = false,
+    kbPlayed = false,
+    kbT0 = 0,
+    kbP = 0,
     pinOn = true; /* the pinned scenes are switched off on phones / very short screens (the CSS matches this) */
-  const kb = { rx: 0, ry: 0, vx: 0, vy: 0, sc: 1, vs: 0, tx: 0, ty: 0, last: 0, init: false };
+  const kb = { rx: 0, ry: 0, vx: 0, vy: 0, sc: 1, vs: 0, tx: 0, ty: 0, last: 0, init: false, e: [], ve: [], ox: 0, oy: 0, vox: 0, voy: 0, gx: 0, gy: 0, oa: 0, voa: 0, drag: null, fvy: 0, lp: -1, kp: "", lrx: 1e9, lry: 1e9, rested: false, drawn: false };
   const p2 = (n) => String(n).padStart(2, "0");
+  const rnd = (i, k) => {
+    const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
   /* a spring that overshoots a touch: stepped in small fixed slices so it stays stable at any frame rate */
   const spring = (val, vel, target, k, c, dt) => {
     let n = Math.max(1, Math.ceil(dt / 0.008));
@@ -1363,7 +1381,7 @@ function flickerAt(ms) {
     const W = kbScene.clientWidth,
       H = kbScene.clientHeight;
     if (!W || !H || !msData.length) return; /* hidden (phone layout) */
-    const S = Math.round(Math.max(220, Math.min(H * 0.7, W * 0.7, 620))),
+    const S = Math.round(Math.max(220, Math.min(H * 0.68, W * 0.7, 600))),
       sig = [S, msData.map((d) => d.t + d.p).join("|")].join("~");
     if (sig === kbSig) return; /* nothing changed: keep the cube (and the face it is on) */
     kbSig = sig;
@@ -1375,6 +1393,8 @@ function flickerAt(ms) {
     kbScene.style.setProperty("--S", S + "px");
     kbScene.style.setProperty("--a", a.toFixed(1) + "px");
     kbA = a;
+    kbCubeMode = cube;
+    kbStep = 360 / N;
     const fts = cube
         ? ["", "rotateY(90deg)", "rotateY(180deg)", "rotateY(-90deg)", "rotateX(90deg)", "rotateX(-90deg)"]
         : Array.from({ length: F }, (_, i) => `rotateY(${(i * step).toFixed(3)}deg)`),
@@ -1387,29 +1407,96 @@ function flickerAt(ms) {
       : Array.from({ length: F }, (_, i) => [0, -i * step]);
     kbCube.innerHTML = Array.from({ length: F }, (_, i) => {
       const d = msData[i % N];
-      return `<div class="kx-f" style="--ft:${fts[i]};--h:${8 + (((i % N) * 7) % 26)}"${i >= N ? ' aria-hidden="true"' : ""}><div class="kx-in"><div class="kx-top mono"><span>${escH(d.k)}</span><span>${p2((i % N) + 1)} / ${p2(N)}</span></div><b class="kx-n">${p2((i % N) + 1)}</b><div class="kx-tx"><h3>${escH(d.t)}</h3><p>${escH(d.p)}</p></div></div><i class="kx-sh"></i></div>`;
+      return `<div class="kx-f" style="--ft:${fts[i]};--h:${8 + (((i % N) * 7) % 26)};--r:${((rnd(i, 4) - 0.5) * 70).toFixed(1)}deg"${i >= N ? ' aria-hidden="true"' : ""}><div class="kx-in"><div class="kx-top mono"><span>${escH(d.k)}</span><span>${p2((i % N) + 1)} / ${p2(N)}</span></div><b class="kx-n">${p2((i % N) + 1)}</b><div class="kx-tx"><h3>${escH(d.t)}</h3><p>${escH(d.p)}</p></div></div><i class="kx-sh"></i></div>`;
     }).join("");
     kbFaces = [...kbCube.children];
-    kbShade = kbFaces.map((f, i) => ({ el: f.querySelector(".kx-sh"), n: norms[i], o: -1 }));
-    kbToc.innerHTML = msData.map((d, i) => `<li><i class="mono">${p2(i + 1)}</i><span>${escH(d.t)}</span></li>`).join("");
-    ms.style.setProperty("--kx-n", N);
+    kbShade = kbFaces.map((f, i) => ({ f, el: f.querySelector(".kx-sh"), n: norms[i], o: "" }));
+    kbToc.innerHTML = msData.map((d, i) => `<li tabindex="0" role="button"><i class="mono">${p2(i + 1)}</i><span>${escH(d.t)}</span></li>`).join("");
+    /* the ring of nodes around the foot of the cube: one per mission */
+    kbRing.innerHTML = msData.map((d, i) => `<i class="kx-od" style="--oa:${(i * kbStep).toFixed(2)}deg"></i>`).join("");
+    kbDots = [...kbRing.children];
+    kb.e = kbFaces.map(() => (kbPlayed ? 0 : 1));
+    kb.ve = kbFaces.map(() => 0);
+    kbFaces.forEach((f, i) => f.style.setProperty("--e", kb.e[i]));
     msCur = -1;
     kb.init = false;
+    kb.drawn = false;
+    kb.rested = false;
+    kb.lrx = kb.lry = 1e9;
   }
   function kbChange(cur, first) {
     msCur = cur;
     [...kbToc.children].forEach((e, i) => e.classList.toggle("on", i === cur));
+    kbDots.forEach((e, i) => e.classList.toggle("on", i === cur));
     const d = msData[cur];
     msN.textContent = `MISSION ${p2(cur + 1)} / ${p2(msData.length)}`;
     kbSr.textContent = `${d.k}: ${d.t}. ${d.p}`;
     if (!first) kbLand = true; /* the thud happens when the cube actually lands, not when it starts to turn */
   }
+  function kbThud() {
+    kb.vs = -0.55;
+    kbRip.classList.remove("go");
+    void kbRip.offsetWidth; /* restart the CSS animation */
+    kbRip.classList.add("go");
+  }
+  /* click a mission in the list: scroll to where the cube shows it */
+  const kbGoto = (i) => {
+    const N = msData.length;
+    scrollTo({ top: msTop + (N > 1 ? (i / (N - 1)) * 0.94 : 0) * (msH - innerHeight) + 1, behavior: "smooth" });
+  };
+  kbToc.addEventListener("click", (e) => {
+    const li = e.target.closest("li");
+    if (li) kbGoto([...kbToc.children].indexOf(li));
+  });
+  kbToc.addEventListener("keydown", (e) => {
+    const li = e.target.closest("li");
+    if (li && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      kbGoto([...kbToc.children].indexOf(li));
+    }
+  });
+  /* grab and spin the cube */
+  kbScene.addEventListener("pointerdown", (e) => {
+    if (!pinOn || e.button) return;
+    kb.drag = { id: e.pointerId, px: e.clientX, py: e.clientY, pt: performance.now() };
+    kb.fvy = 0;
+    try {
+      kbScene.setPointerCapture(e.pointerId);
+    } catch {}
+    kbHint.classList.add("hide");
+  });
+  kbScene.addEventListener("pointermove", (e) => {
+    const d = kb.drag;
+    if (!d || d.id !== e.pointerId) return;
+    const now = performance.now(),
+      dx = e.clientX - d.px,
+      dy = e.clientY - d.py,
+      dtm = Math.max(1, now - d.pt) / 1000;
+    d.px = e.clientX;
+    d.py = e.clientY;
+    d.pt = now;
+    kb.gy = cl(kb.gy + dx * 0.45, -220, 220);
+    kb.gx = cl(kb.gx - dy * 0.45, -80, 80);
+    kb.fvy += (cl((dx * 0.45) / dtm, -900, 900) - kb.fvy) * 0.4;
+  });
+  const kbRelease = (e) => {
+    const d = kb.drag;
+    if (!d || d.id !== e.pointerId) return;
+    kb.drag = null;
+    kb.gx = kb.gy = 0; /* springs back to the current mission... */
+    kb.voy += kb.fvy * 0.5; /* ...after a fling in the direction you let go */
+  };
+  kbScene.addEventListener("pointerup", kbRelease);
+  kbScene.addEventListener("pointercancel", kbRelease);
+  setTimeout(() => kbHint.classList.add("hide"), 9000);
   function msDraw(t, p) {
     const N = msData.length;
     if (!N || !kbFaces.length) return;
+    if (!kbStarted && sy < msTop - innerHeight * 0.6) return; /* the cube assembles as it scrolls into view, not before */
     const dt = Math.min(0.05, (t - kb.last) / 1000 || 0.016);
     kb.last = t;
-    const s = cl(p / 0.94, 0, 1) * (N - 1),
+    kbP = cl(p / 0.94, 0, 1);
+    const s = kbP * (N - 1),
       i = N > 1 ? Math.min(N - 2, Math.floor(s)) : 0,
       f = N > 1 ? s - i : 0,
       /* hold on each face for the first and last third of its scroll, and turn in the middle: it feels like detents */
@@ -1427,46 +1514,111 @@ function flickerAt(ms) {
       kb.vx = kb.vy = 0;
       kb.sc = 1;
       kb.vs = 0;
+      kb.oa = 90 - cur * kbStep;
+      kb.voa = 0;
     }
     if (cur !== msCur) kbChange(cur, msCur < 0);
+    /* arrival: the faces fly in from apart, one after another, and slam together */
+    if (!kbStarted) {
+      kbStarted = true;
+      kbT0 = t;
+      kbTilt.style.visibility = "visible";
+      if (kbPlayed) kb.e.fill(0);
+    }
+    if (!kbPlayed) {
+      let settled = true;
+      for (let k = 0; k < kbFaces.length; k++) {
+        if (reduceMotion.matches) kb.e[k] = kb.ve[k] = 0;
+        else if (t - kbT0 >= k * 75) [kb.e[k], kb.ve[k]] = spring(kb.e[k], kb.ve[k], 0, 110, 10, dt);
+        if (Math.abs(kb.e[k]) > 0.004 || Math.abs(kb.ve[k]) > 0.05) settled = false;
+        kbFaces[k].style.setProperty("--e", kb.e[k].toFixed(4));
+      }
+      if (settled) {
+        kbPlayed = true;
+        kb.e.fill(0);
+        kbFaces.forEach((fc) => fc.style.setProperty("--e", 0));
+        if (!reduceMotion.matches) kbThud();
+      }
+    }
     if (reduceMotion.matches) {
       kb.rx = trx;
       kb.ry = tr_y;
       kb.vx = kb.vy = 0;
+      kb.ox = kb.oy = kb.vox = kb.voy = 0;
+      kb.oa = 90 - cur * kbStep;
     } else {
       [kb.rx, kb.vx] = spring(kb.rx, kb.vx, trx, 170, 13, dt);
       [kb.ry, kb.vy] = spring(kb.ry, kb.vy, tr_y, 170, 13, dt);
+      /* what you grabbed: stiff while you hold it, loose and wobbly when it springs home */
+      const kO = kb.drag ? 260 : 80,
+        cO = kb.drag ? 28 : 8.5;
+      [kb.ox, kb.vox] = spring(kb.ox, kb.vox, kb.gx, kO, cO, dt);
+      [kb.oy, kb.voy] = spring(kb.oy, kb.voy, kb.gy, kO, cO, dt);
+      [kb.oa, kb.voa] = spring(kb.oa, kb.voa, 90 - cur * kbStep, 70, 9, dt);
     }
     /* landed: a little thud (the cube dips in scale and springs back) and a ripple on the floor */
     if (kbLand && Math.abs(trx - kb.rx) < 1.6 && Math.abs(tr_y - kb.ry) < 1.6 && Math.abs(kb.vx) + Math.abs(kb.vy) < 40) {
       kbLand = false;
-      if (!reduceMotion.matches) {
-        kb.vs = -0.55;
-        kbRip.classList.remove("go");
-        void kbRip.offsetWidth;
-        kbRip.classList.add("go");
-      }
+      if (!reduceMotion.matches) kbThud();
     }
     [kb.sc, kb.vs] = spring(kb.sc, kb.vs, 1, 260, 14, dt);
-    /* mouse tilt + a slow idle float */
-    kb.tx += ((mx / innerWidth - 0.5) * 12 - kb.tx) * 0.06;
-    kb.ty += ((my / innerHeight - 0.5) * -8 - kb.ty) * 0.06;
-    kbTilt.style.transform = `translateY(${(Math.sin(t * 0.0012) * 6).toFixed(2)}px) rotateX(${(-9 + kb.ty).toFixed(2)}deg) rotateY(${(13 + kb.tx).toFixed(2)}deg)`;
-    kbCube.style.transform = `translateZ(${(-kbA).toFixed(1)}px) rotateX(${kb.rx.toFixed(3)}deg) rotateY(${kb.ry.toFixed(3)}deg) scale(${kb.sc.toFixed(4)})`;
-    /* shade the faces that turn away from the camera (cheap fake lighting) */
-    const cx = Math.cos((kb.rx * Math.PI) / 180),
-      sx = Math.sin((kb.rx * Math.PI) / 180),
-      cy = Math.cos((kb.ry * Math.PI) / 180),
-      sy = Math.sin((kb.ry * Math.PI) / 180);
-    for (const sh of kbShade) {
-      const [nx, ny, nz] = sh.n,
-        x1 = nx * cy + nz * sy,
-        z1 = -nx * sy + nz * cy,
-        z2 = ny * sx + z1 * cx,
-        o = ((1 - cl(z2, 0, 1)) * 0.5).toFixed(2);
-      if (o !== sh.o) {
-        sh.o = o;
-        sh.el.style.opacity = o;
+    /* mouse tilt (not on touch screens) */
+    const ttx = coarse ? 0 : (mx / innerWidth - 0.5) * 12,
+      tty = coarse ? 0 : (my / innerHeight - 0.5) * -8;
+    kb.tx += (ttx - kb.tx) * 0.06;
+    kb.ty += (tty - kb.ty) * 0.06;
+    /* Nothing is moving any more? Then do no DOM work at all until something does. (The idle float is pure CSS,
+       so a resting cube costs the main thread nothing.) */
+    const moving =
+      kb.drag ||
+      !kb.drawn ||
+      kbP !== kb.lp ||
+      Math.abs(kb.vx) + Math.abs(kb.vy) + Math.abs(kb.vox) + Math.abs(kb.voy) + Math.abs(kb.voa) + Math.abs(kb.vs) > 0.03 ||
+      Math.abs(trx - kb.rx) + Math.abs(tr_y - kb.ry) + Math.abs(kb.gx - kb.ox) + Math.abs(kb.gy - kb.oy) > 0.02 ||
+      Math.abs(kb.sc - 1) > 0.0005 ||
+      Math.abs(ttx - kb.tx) + Math.abs(tty - kb.ty) > 0.02;
+    if (!moving) {
+      if (kb.rested) return;
+      kb.rested = true; /* draw this last frame, then sleep */
+    } else kb.rested = false;
+    kb.lp = kbP;
+    kb.drawn = true;
+    const rxT = kb.rx + kb.ox,
+      ryT = kb.ry + kb.oy;
+    kbTilt.style.transform = `rotateX(${(-9 + kb.ty).toFixed(2)}deg) rotateY(${(13 + kb.tx).toFixed(2)}deg) rotateZ(${cl(-(kb.vy + kb.voy) * 0.012, -3, 3).toFixed(2)}deg)`;
+    kbCube.style.transform = `translateZ(${(-kbA).toFixed(1)}px) rotateX(${rxT.toFixed(3)}deg) rotateY(${ryT.toFixed(3)}deg) scale(${kb.sc.toFixed(4)})`;
+    /* the floor pulses when the cube lands, the ring clicks round to the current mission */
+    const pulse = 1 - kb.sc;
+    kbFloor.style.transform = `scale(${(1 + pulse * 3.5).toFixed(3)})`;
+    kbFloor.style.opacity = cl(0.85 + pulse * 4, 0, 1).toFixed(2);
+    kbRing.style.transform = `rotateZ(${kb.oa.toFixed(2)}deg)`;
+    /* the grid texture slides with the spin (a cheap translate: the pattern repeats every 64px, so it wraps invisibly) */
+    kbGl.style.transform = `translate3d(${((-ryT * 1.4) % 64).toFixed(1)}px,${((kbP * 700) % 64).toFixed(1)}px,0)`;
+    const kp = kbP.toFixed(3);
+    if (kp !== kb.kp) {
+      kb.kp = kp;
+      kbToc.style.setProperty("--kp", kp);
+    }
+    /* shade the faces that turn away from the camera (cheap fake lighting): only when the rotation changed */
+    if (Math.abs(rxT - kb.lrx) + Math.abs(ryT - kb.lry) > 0.01) {
+      kb.lrx = rxT;
+      kb.lry = ryT;
+      const cosX = Math.cos((rxT * Math.PI) / 180),
+        sinX = Math.sin((rxT * Math.PI) / 180),
+        cosY = Math.cos((ryT * Math.PI) / 180),
+        sinY = Math.sin((ryT * Math.PI) / 180);
+      for (const sh of kbShade) {
+        const [nx, ny, nz] = sh.n,
+          z1 = -nx * sinY + nz * cosY,
+          z2 = ny * sinX + z1 * cosX,
+          o = ((kbCubeMode ? 0.5 : 0.88) * (1 - cl(z2, 0, 1))).toFixed(2), /* a many-sided prism fades its side faces out almost completely */
+          b = cl((z2 - 0.12) / 0.5, 0, 1).toFixed(2); /* the text fades in as a face turns to you, and is gone on faces seen edge-on */
+        if (o !== sh.o || b !== sh.b) {
+          sh.o = o;
+          sh.b = b;
+          sh.el.style.opacity = o;
+          sh.f.style.setProperty("--b", b);
+        }
       }
     }
   }
@@ -1489,7 +1641,8 @@ function flickerAt(ms) {
     wyHt = 0,
     wyDpr = 1,
     wyLast = 0,
-    wyLbl = "";
+    wyLbl = "",
+    wyInk = false; /* is there anything drawn on the canvas right now? */
   const sparks = [],
     torch = { x: 0, y: 0, pow: 0, init: false };
   function wyLayout() {
@@ -1499,7 +1652,7 @@ function flickerAt(ms) {
     torch.init = false;
     sparks.length = 0;
     if (!wyW || !wyHt) return;
-    wyDpr = q === 0 ? Math.min(1.5, devicePixelRatio || 1) : 1;
+    wyDpr = 1; /* sparks are thin lines: full resolution buys nothing and costs a lot on big screens */
     wyCv.width = Math.round(wyW * wyDpr);
     wyCv.height = Math.round(wyHt * wyDpr);
     /* where each title is, relative to the stage (both move together while pinned, so scroll does not matter) */
@@ -1556,6 +1709,9 @@ function flickerAt(ms) {
     const dist = Math.hypot(torch.x - ox, torch.y - oy),
       burning = !done && f < 1 && p > 0.002;
     torch.pow += ((burning ? 1 : 0) - torch.pow) * Math.min(1, dt * 10);
+    const live = burning || sparks.length > 0 || torch.pow > 0.02;
+    if (!live && !wyInk) return; /* nothing to draw, and nothing left on the canvas to clear */
+    wyInk = live;
     const g = wyCx;
     g.setTransform(wyDpr, 0, 0, wyDpr, 0, 0);
     g.clearRect(0, 0, wyW, wyHt);
@@ -1848,8 +2004,8 @@ function flickerAt(ms) {
       el.style.transform =
         `translate(calc(-50% + ${(dir * u * u * 115).toFixed(2)}vw), calc(-50% + ${(4 - u * 7 + u * u * 34 - depth * 3.2).toFixed(2)}vh)) ` +
         `rotate(${(dir * u * 36 + ((i % 3) - 1) * depth * 1.4).toFixed(2)}deg) scale(${(1 - depth * 0.04).toFixed(3)})`;
-      /* cards further back are slightly dimmer (skipped on the lite tier: filters are the costly part) */
-      el.style.filter = q < 2 && depth > 0 ? `brightness(${(1 - depth * 0.1).toFixed(3)})` : "";
+      /* cards further back are slightly dimmer: a black overlay whose opacity changes (compositor-only), not a filter */
+      el.style.setProperty("--dim", q < 2 ? (depth * 0.1).toFixed(3) : 0);
     }
     const lbl = String(Math.min(N, Math.floor(x + 0.001) + 1)).padStart(2, "0") + " / " + String(N).padStart(2, "0");
     if (lbl !== lastStkLbl) {
@@ -1931,8 +2087,6 @@ function flickerAt(ms) {
       if (cyP.length && (full || (sy > cyTop - innerHeight * 1.2 && sy < cyTop + cyH + innerHeight * 0.2)))
         cylinder(prog(cyTop, cyH, sy), full);
       if (full || (sy > hwTop - innerHeight * 1.2 && sy < hwTop + hwH + innerHeight * 0.2)) stages(prog(hwTop, hwH, sy), full);
-      if (pinOn && sy > msTop - innerHeight && sy < msTop + msH + innerHeight * 0.2) msDraw(t, prog(msTop, msH, sy));
-      if (pinOn && sy > wyTop - innerHeight && sy < wyTop + wyH + innerHeight * 0.2) wyDraw(t, prog(wyTop, wyH, sy));
       if (q < 2)
         for (let i = 0; i < pxs.length; i++) {
           const vc = h2C[i] - scrollY - innerHeight / 2;
@@ -1945,6 +2099,10 @@ function flickerAt(ms) {
           }
         }
     }
+    /* the pinned scenes (cube, torch) animate on their own clocks: springs settle, sparks fall, things float.
+       So they run every frame while in view, not only when the scroll position changes. */
+    if (pinOn && sy > msTop - innerHeight && sy < msTop + msH + innerHeight * 0.2) msDraw(t, prog(msTop, msH, sy));
+    if (pinOn && sy > wyTop - innerHeight && sy < wyTop + wyH + innerHeight * 0.2) wyDraw(t, prog(wyTop, wyH, sy));
     /* marquee skew follows scroll speed; only touch the DOM when the angle actually changes */
     vs += (sy - psy - vs) * 0.12;
     psy = sy;

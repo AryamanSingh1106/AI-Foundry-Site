@@ -579,6 +579,7 @@ body::after {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100svh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -635,14 +636,35 @@ body::after {
 /* missions: the 3D cube */
 .kx-toc {
   position: absolute;
-  z-index: 1;
-  left: 6vw;
+  z-index: 2;
+  left: calc(6vw + 22px);
   top: 50%;
   width: min(28vw, 380px);
   margin: 0;
   padding: 0;
   list-style: none;
   transform: translateY(-50%);
+  --kp: 0;
+}
+.kx-toc::before,
+.kx-toc::after {
+  /* a thin progress line down the left of the list */
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 2px;
+}
+.kx-toc::before {
+  background: #232323;
+}
+.kx-toc::after {
+  background: var(--ac);
+  box-shadow: 0 0 10px var(--ac);
+  transform-origin: 50% 0;
+  transform: scaleY(var(--kp));
 }
 .kx-toc li {
   display: flex;
@@ -655,8 +677,14 @@ body::after {
   line-height: 1.15;
   color: rgba(243, 241, 236, 0.26);
   transition: color 0.35s;
+  outline: none;
+}
+.kx-toc li:hover,
+.kx-toc li:focus-visible {
+  color: rgba(243, 241, 236, 0.7);
 }
 .kx-toc li i {
+  order: 0;
   font-size: 12px;
   font-style: normal;
   letter-spacing: 0.1em;
@@ -675,9 +703,6 @@ body::after {
 }
 .kx-toc li span {
   order: 2;
-}
-.kx-toc li i {
-  order: 0;
 }
 .kx-toc li.on {
   color: #f3f1ec;
@@ -699,17 +724,46 @@ body::after {
   bottom: 10%;
   perspective: 1700px;
   perspective-origin: 50% 40%;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* a glowing floor grid. The pattern layer only ever moves with a transform (no repaint); the soft edge is a static overlay */
+.kx-grid {
+  position: absolute;
+  left: 50%;
+  top: calc(48% + var(--S) * 0.6);
+  width: calc(var(--S) * 2.8);
+  height: calc(var(--S) * 2.8);
+  margin: calc(var(--S) * -1.4) 0 0 calc(var(--S) * -1.4);
+  transform: rotateX(76deg);
+  pointer-events: none;
+  contain: layout style;
+}
+.kx-gl {
+  position: absolute;
+  inset: -64px;
+  will-change: transform;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 77, 46, 0.3) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(0deg, rgba(255, 77, 46, 0.3) 0 1px, transparent 1px 64px);
+}
+.kx-grid::after {
+  content: "";
+  position: absolute;
+  inset: -64px;
+  background: radial-gradient(circle at center, transparent 10%, var(--bg, #000) 56%);
 }
 .kx-floor {
   position: absolute;
   left: 50%;
   top: calc(48% + var(--S) * 0.6);
-  width: calc(var(--S) * 1.2);
-  height: calc(var(--S) * 0.17);
-  margin-left: calc(var(--S) * -0.6);
+  width: calc(var(--S) * 1.3);
+  height: calc(var(--S) * 0.2);
+  margin: calc(var(--S) * -0.02) 0 0 calc(var(--S) * -0.65);
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(255, 77, 46, 0.5), rgba(255, 77, 46, 0) 70%);
-  filter: blur(8px);
+  background: radial-gradient(ellipse at center, rgba(255, 77, 46, 0.5), rgba(255, 77, 46, 0) 68%);
+  pointer-events: none;
 }
 .kx-rip {
   position: absolute;
@@ -736,14 +790,80 @@ body::after {
     transform: scale(2);
   }
 }
-.kx-tilt {
+.kx-float {
+  /* the slow idle bob is a CSS animation, so it runs on the compositor and costs no JavaScript */
   position: absolute;
   left: 50%;
   top: 48%;
   width: 0;
   height: 0;
   transform-style: preserve-3d;
+  animation: kxFloat 5.4s ease-in-out infinite;
+}
+@keyframes kxFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+.kx-tilt {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  visibility: hidden; /* shown when the cube starts to assemble */
+  transform-style: preserve-3d;
   will-change: transform;
+}
+/* the ring of mission nodes around the foot of the cube */
+.kx-orb {
+  position: absolute;
+  left: 50%;
+  top: calc(48% + var(--S) * 0.6);
+  width: 0;
+  height: 0;
+  transform: rotateX(76deg);
+  pointer-events: none;
+}
+.kx-ringrot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+.kx-ringrot::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--S) * -0.6);
+  top: calc(var(--S) * -0.6);
+  width: calc(var(--S) * 1.2);
+  height: calc(var(--S) * 1.2);
+  border: 1px solid rgba(255, 77, 46, 0.4);
+  border-radius: 50%;
+}
+.kx-od {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #5a463e;
+  border: 1px solid rgba(243, 241, 236, 0.6);
+  transform: rotateZ(var(--oa)) translateX(calc(var(--S) * 0.6));
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+}
+.kx-od.on {
+  background: var(--ac);
+  border-color: #ffd2c4;
+  box-shadow: 0 0 16px 3px var(--ac);
 }
 .kx-cube {
   position: absolute;
@@ -755,11 +875,16 @@ body::after {
   will-change: transform;
 }
 .kx-f {
+  --e: 0;
+  --b: 1;
   position: absolute;
   inset: 0;
-  transform: var(--ft, none) translateZ(var(--a));
+  /* --e is 1 while the faces are flying in from apart, 0 when they are together */
+  transform: var(--ft, none) translateZ(calc(var(--a) + var(--e) * var(--S) * 1.2)) rotateZ(calc(var(--e) * var(--r, 0deg)));
+  transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  border-radius: 18px;
+  border-radius: 16px;
   border: 1.5px solid rgba(243, 241, 236, 0.55);
   background:
     radial-gradient(110% 80% at 100% 0%, hsl(var(--h) 100% 55% / 0.36), transparent 60%),
@@ -768,7 +893,6 @@ body::after {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     inset 0 0 40px rgba(255, 77, 46, 0.08);
-  overflow: hidden;
 }
 .kx-in {
   position: relative;
@@ -777,6 +901,15 @@ body::after {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  transform-style: preserve-3d;
+}
+/* the number, title and description float above the face, so they shift against it when the cube turns or tilts */
+.kx-top,
+.kx-n,
+.kx-tx {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  opacity: var(--b);
 }
 .kx-top {
   display: flex;
@@ -784,6 +917,7 @@ body::after {
   font-size: 11px;
   letter-spacing: 0.16em;
   color: var(--ac);
+  transform: translateZ(calc(var(--S) * 0.025));
 }
 .kx-top span:last-child {
   color: rgba(243, 241, 236, 0.55);
@@ -798,6 +932,10 @@ body::after {
   letter-spacing: -0.06em;
   color: rgba(255, 77, 46, 0.08);
   -webkit-text-stroke: 1.5px var(--ac);
+  transform: translateZ(calc(var(--S) * 0.075));
+}
+.kx-tx {
+  transform: translateZ(calc(var(--S) * 0.045));
 }
 .kx-tx h3 {
   margin: 0 0 calc(var(--S) * 0.02);
@@ -815,9 +953,37 @@ body::after {
 .kx-sh {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background: #000;
   opacity: 0;
   pointer-events: none;
+}
+.kx-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8d8a83;
+  transition: opacity 0.6s;
+  pointer-events: none;
+}
+.kx-hint.hide {
+  opacity: 0;
+}
+html.mid .kx-grid {
+  display: none;
+}
+html.lite .kx-orb {
+  display: none;
+}
+html.lite .kx-float {
+  animation: none;
+}
+html.lite .kx-f {
+  box-shadow: none;
 }
 .sr-only {
   position: absolute;
@@ -961,6 +1127,7 @@ body::after {
   .pr-big,
   .kx-toc,
   .kx-scene,
+  .kx-hint,
   .mn-tag,
   .ms-n {
     display: none;
@@ -1062,6 +1229,15 @@ html.lite .vm .w {
   isolation: isolate;
 }
 /* fine dot texture that fades out from the top-right corner */
+.pn-dim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #000;
+  opacity: var(--dim, 0);
+  pointer-events: none;
+  will-change: opacity;
+}
 .pn::before {
   content: "";
   position: absolute;
@@ -1128,6 +1304,7 @@ html.lite .vm .w {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100svh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1498,6 +1675,7 @@ blockquote p + p {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100svh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1551,17 +1729,29 @@ blockquote p + p {
   gap: 10px;
   padding: 22px 12px 16px;
   border-radius: 20px;
-  border: 1.5px solid rgba(243, 241, 236, calc(0.3 + 0.35 * var(--f)));
+  border: 1.5px solid rgba(243, 241, 236, 0.36);
   background:
     radial-gradient(110% 80% at 100% 0%, hsl(var(--h) 100% 55% / 0.34), transparent 60%),
     linear-gradient(90deg, var(--ac), rgba(255, 77, 46, 0) 72%) left bottom / 100% 4px no-repeat,
     linear-gradient(158deg, #3a2720 0%, #241915 50%, #171110 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 30px 60px -24px rgba(255, 77, 46, calc(0.12 + 0.45 * var(--f)));
+    0 30px 60px -24px rgba(255, 77, 46, 0.3);
   opacity: calc(0.3 + 0.7 * var(--f));
-  filter: saturate(calc(0.45 + 0.55 * var(--f)));
   overflow: hidden;
+}
+/* the glow on the card facing you is an overlay that only changes opacity (a compositor-only change), not a border / shadow that has to be repainted every frame */
+.cy-p::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(243, 241, 236, 0.6),
+    inset 0 -50px 70px -40px rgba(255, 77, 46, 0.4);
+  opacity: var(--f);
+  will-change: opacity;
+  pointer-events: none;
 }
 /* lanyard slot, like a badge */
 .cy-slot {
@@ -1702,10 +1892,6 @@ blockquote p + p {
   letter-spacing: 0.18em;
   color: #b9b4aa;
   pointer-events: none;
-}
-html.mid .cy-p,
-html.lite .cy-p {
-  filter: none; /* the saturate() on every card is the costly part on weak devices */
 }
 html.lite .cy-p {
   box-shadow: none;
@@ -2823,4 +3009,11 @@ html.mid .gf::before {
 /* the custom cursor stays visible above the replayed intro (back-to-top button) */
 html.replay .cur {
   z-index: 101;
+}
+
+/* pinned (sticky) sections must not sit inside a scroll container: where supported, clip sideways overflow instead of hiding it */
+@supports (overflow: clip) {
+  body {
+    overflow-x: clip;
+  }
 }
