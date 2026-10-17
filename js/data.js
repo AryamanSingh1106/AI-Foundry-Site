@@ -15,7 +15,7 @@ window.SITE_DATA = {
     SOCIAL: {
       instagram: "https://www.instagram.com/aifoundryuai/",
       discord: "https://discord.gg/Uj2aYypew",
-      linkedin: "https://www.linkedin.com/in/aifoundry-undefined-379225441/",
+      linkedin: "https://www.linkedin.com/in/ai-foundry-379225441/?isSelfProfile=true",
     },
   },
   /* Scroll-reveal sentence in 'Who we are'. Words wrapped in *stars* turn orange. */
