@@ -169,8 +169,23 @@
         </div>
       </div>
     </section>
-    <section class="sec" style="padding-top: 4vh">
-      <div class="grid g3 rv" id="mis"></div>
+    <section id="missions">
+      <!-- pinned 3D cube: one face per mission. Scrolling tumbles the cube to the next face with a springy snap; the mouse tilts it.
+           The cube is built from the same data as the cards below (#mis), which stay as the phone / short-screen version. -->
+      <div id="ms">
+        <div class="st">
+          <span class="tag mono mn-tag">The missions</span>
+          <ol class="kx-toc" id="kxtoc" aria-hidden="true"></ol>
+          <div class="kx-scene" id="kxscene" aria-hidden="true">
+            <div class="kx-floor"></div>
+            <i class="kx-rip" id="kxrip"></i>
+            <div class="kx-tilt" id="kxtilt"><div class="kx-cube" id="kxcube"></div></div>
+          </div>
+          <p class="sr-only" id="kxsr" aria-live="polite"></p>
+          <p class="ms-n mono" id="msn" aria-live="off"></p>
+          <div class="grid g3" id="mis"></div>
+        </div>
+      </div>
     </section>
 
     <div class="stats" id="stats">
@@ -298,7 +313,19 @@
           </p>
         </div>
       </div>
-      <div class="grid g3" id="why"></div>
+    </section>
+
+    <section id="problems">
+      <!-- pinned: a cutting torch burns through each problem in turn, throwing sparks (canvas on top of the list) -->
+      <div id="wy">
+        <div class="st">
+          <span class="tag mono pr-tag">The problems</span>
+          <ol class="pr-list" id="why"></ol>
+          <div class="pr-big" id="wybig" aria-hidden="true">01</div>
+          <canvas id="wyc" aria-hidden="true"></canvas>
+          <p class="ms-n mono" id="wyn" aria-live="off"></p>
+        </div>
+      </div>
     </section>
 
     <div id="md" role="dialog" aria-modal="true" aria-labelledby="mt">

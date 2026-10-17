@@ -141,9 +141,10 @@ function flickerAt(ms) {
   const U = (u) => escH(safeUrl(u));
   const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
   const card = (n, t, p, i) =>
-    `<div class="card rv" style="--d:${(i % 3) * 0.1}s"><span class="num">${escH(n)}</span><h3>${escH(t)}</h3><p>${escH(p)}</p></div>`;
-  $("#why").innerHTML = WHY.map((w, i) =>
-    card("0" + (i + 1), w.title, w.text, i),
+    `<div class="card"><span class="num">${escH(n)}</span><h3>${escH(t)}</h3><p>${escH(p)}</p></div>`;
+  $("#why").innerHTML = WHY.map(
+    (w, i) =>
+      `<li class="pr up"><span class="pr-n mono">${String(i + 1).padStart(2, "0")}</span><div class="pr-b"><div class="pr-h"><span class="pr-t">${escH(w.title)}</span><i class="pr-ln"></i></div><p>${escH(w.text)}</p></div></li>`,
   ).join("");
   $("#mis").innerHTML = MIS.map((w, i) =>
     card("M" + (i + 1), w.title, w.text, i),
@@ -891,6 +892,29 @@ function flickerAt(ms) {
       });
   }
   intro();
+  /* Vision / Why we exist: wrap every word so it can rise in one after another (CSS does the animation) */
+  $$(".vm p").forEach((p) => {
+    let k = 0;
+    (function wrap(node) {
+      [...node.childNodes].forEach((n) => {
+        if (n.nodeType === 3) {
+          const f = document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach((t) => {
+            if (!t) return;
+            if (/^\s+$/.test(t)) f.append(" ");
+            else {
+              const s = document.createElement("span");
+              s.className = "w";
+              s.style.setProperty("--i", k++);
+              s.textContent = t;
+              f.append(s);
+            }
+          });
+          n.replaceWith(f);
+        } else if (n.nodeType === 1) wrap(n);
+      });
+    })(p);
+  });
   /* reveal */
   const io = new IntersectionObserver(
     (es) =>
@@ -1291,14 +1315,315 @@ function flickerAt(ms) {
       hwN.textContent = `STAGE ${String(cur + 1).padStart(2, "0")} / ${String(N).padStart(2, "0")}`;
     }
   }
+  /* =====================================================================================
+     M1-M6 missions: a 3D cube, one face per mission.
+     Scrolling tumbles the cube from face to face. Each turn is a spring: it snaps, overshoots a little and
+     settles with a thud (a dip in scale, a ripple on the floor). The mouse tilts the whole thing.
+     Six missions = a real cube. Any other number becomes a prism with that many faces, so it still works
+     if missions are added or removed. Faces, the contents list and the scroll length come from the data.
+     ===================================================================================== */
+  const ms = $("#ms"),
+    msN = $("#msn"),
+    kbScene = $("#kxscene"),
+    kbTilt = $("#kxtilt"),
+    kbCube = $("#kxcube"),
+    kbToc = $("#kxtoc"),
+    kbRip = $("#kxrip"),
+    kbSr = $("#kxsr");
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  let msTop = 0,
+    msH = 1,
+    msData = [],
+    msCur = -1,
+    kbSig = "",
+    kbFaces = [],
+    kbOri = [],
+    kbA = 0,
+    kbLand = false,
+    kbShade = [],
+    pinOn = true; /* the pinned scenes are switched off on phones / very short screens (the CSS matches this) */
+  const kb = { rx: 0, ry: 0, vx: 0, vy: 0, sc: 1, vs: 0, tx: 0, ty: 0, last: 0, init: false };
+  const p2 = (n) => String(n).padStart(2, "0");
+  /* a spring that overshoots a touch: stepped in small fixed slices so it stays stable at any frame rate */
+  const spring = (val, vel, target, k, c, dt) => {
+    let n = Math.max(1, Math.ceil(dt / 0.008));
+    const h = dt / n;
+    while (n--) {
+      vel += ((target - val) * k - vel * c) * h;
+      val += vel * h;
+    }
+    return [val, vel];
+  };
+  function msLayout() {
+    msData = $$("#mis .card").map((c) => ({
+      k: c.querySelector(".num").textContent,
+      t: c.querySelector("h3").textContent.trim(),
+      p: c.querySelector("p").textContent,
+    }));
+    const W = kbScene.clientWidth,
+      H = kbScene.clientHeight;
+    if (!W || !H || !msData.length) return; /* hidden (phone layout) */
+    const S = Math.round(Math.max(220, Math.min(H * 0.7, W * 0.7, 620))),
+      sig = [S, msData.map((d) => d.t + d.p).join("|")].join("~");
+    if (sig === kbSig) return; /* nothing changed: keep the cube (and the face it is on) */
+    kbSig = sig;
+    const N = msData.length,
+      cube = N === 6,
+      F = Math.max(N, 3), /* a prism needs at least 3 faces; with fewer missions the list simply repeats */
+      step = 360 / F,
+      a = cube ? S / 2 : S / 2 / Math.tan(Math.PI / F);
+    kbScene.style.setProperty("--S", S + "px");
+    kbScene.style.setProperty("--a", a.toFixed(1) + "px");
+    kbA = a;
+    const fts = cube
+        ? ["", "rotateY(90deg)", "rotateY(180deg)", "rotateY(-90deg)", "rotateX(90deg)", "rotateX(-90deg)"]
+        : Array.from({ length: F }, (_, i) => `rotateY(${(i * step).toFixed(3)}deg)`),
+      norms = cube
+        ? [[0, 0, 1], [1, 0, 0], [0, 0, -1], [-1, 0, 0], [0, -1, 0], [0, 1, 0]]
+        : Array.from({ length: F }, (_, i) => [Math.sin((i * step * Math.PI) / 180), 0, Math.cos((i * step * Math.PI) / 180)]);
+    /* the cube orientation (rotateX, rotateY) that brings each face to the front; top and bottom come last so the text stays upright */
+    kbOri = cube
+      ? [[0, 0], [0, -90], [0, -180], [0, -270], [-90, -360], [90, -360]]
+      : Array.from({ length: F }, (_, i) => [0, -i * step]);
+    kbCube.innerHTML = Array.from({ length: F }, (_, i) => {
+      const d = msData[i % N];
+      return `<div class="kx-f" style="--ft:${fts[i]};--h:${8 + (((i % N) * 7) % 26)}"${i >= N ? ' aria-hidden="true"' : ""}><div class="kx-in"><div class="kx-top mono"><span>${escH(d.k)}</span><span>${p2((i % N) + 1)} / ${p2(N)}</span></div><b class="kx-n">${p2((i % N) + 1)}</b><div class="kx-tx"><h3>${escH(d.t)}</h3><p>${escH(d.p)}</p></div></div><i class="kx-sh"></i></div>`;
+    }).join("");
+    kbFaces = [...kbCube.children];
+    kbShade = kbFaces.map((f, i) => ({ el: f.querySelector(".kx-sh"), n: norms[i], o: -1 }));
+    kbToc.innerHTML = msData.map((d, i) => `<li><i class="mono">${p2(i + 1)}</i><span>${escH(d.t)}</span></li>`).join("");
+    ms.style.setProperty("--kx-n", N);
+    msCur = -1;
+    kb.init = false;
+  }
+  function kbChange(cur, first) {
+    msCur = cur;
+    [...kbToc.children].forEach((e, i) => e.classList.toggle("on", i === cur));
+    const d = msData[cur];
+    msN.textContent = `MISSION ${p2(cur + 1)} / ${p2(msData.length)}`;
+    kbSr.textContent = `${d.k}: ${d.t}. ${d.p}`;
+    if (!first) kbLand = true; /* the thud happens when the cube actually lands, not when it starts to turn */
+  }
+  function msDraw(t, p) {
+    const N = msData.length;
+    if (!N || !kbFaces.length) return;
+    const dt = Math.min(0.05, (t - kb.last) / 1000 || 0.016);
+    kb.last = t;
+    const s = cl(p / 0.94, 0, 1) * (N - 1),
+      i = N > 1 ? Math.min(N - 2, Math.floor(s)) : 0,
+      f = N > 1 ? s - i : 0,
+      /* hold on each face for the first and last third of its scroll, and turn in the middle: it feels like detents */
+      u = cl((f - 0.3) / 0.4, 0, 1),
+      fe = u * u * (3 - 2 * u),
+      A = kbOri[i],
+      B = kbOri[Math.min(kbOri.length - 1, i + 1)],
+      trx = A[0] + (B[0] - A[0]) * fe,
+      tr_y = A[1] + (B[1] - A[1]) * fe,
+      cur = Math.min(N - 1, f >= 0.5 ? i + 1 : i);
+    if (!kb.init) {
+      kb.init = true;
+      kb.rx = trx;
+      kb.ry = tr_y;
+      kb.vx = kb.vy = 0;
+      kb.sc = 1;
+      kb.vs = 0;
+    }
+    if (cur !== msCur) kbChange(cur, msCur < 0);
+    if (reduceMotion.matches) {
+      kb.rx = trx;
+      kb.ry = tr_y;
+      kb.vx = kb.vy = 0;
+    } else {
+      [kb.rx, kb.vx] = spring(kb.rx, kb.vx, trx, 170, 13, dt);
+      [kb.ry, kb.vy] = spring(kb.ry, kb.vy, tr_y, 170, 13, dt);
+    }
+    /* landed: a little thud (the cube dips in scale and springs back) and a ripple on the floor */
+    if (kbLand && Math.abs(trx - kb.rx) < 1.6 && Math.abs(tr_y - kb.ry) < 1.6 && Math.abs(kb.vx) + Math.abs(kb.vy) < 40) {
+      kbLand = false;
+      if (!reduceMotion.matches) {
+        kb.vs = -0.55;
+        kbRip.classList.remove("go");
+        void kbRip.offsetWidth;
+        kbRip.classList.add("go");
+      }
+    }
+    [kb.sc, kb.vs] = spring(kb.sc, kb.vs, 1, 260, 14, dt);
+    /* mouse tilt + a slow idle float */
+    kb.tx += ((mx / innerWidth - 0.5) * 12 - kb.tx) * 0.06;
+    kb.ty += ((my / innerHeight - 0.5) * -8 - kb.ty) * 0.06;
+    kbTilt.style.transform = `translateY(${(Math.sin(t * 0.0012) * 6).toFixed(2)}px) rotateX(${(-9 + kb.ty).toFixed(2)}deg) rotateY(${(13 + kb.tx).toFixed(2)}deg)`;
+    kbCube.style.transform = `translateZ(${(-kbA).toFixed(1)}px) rotateX(${kb.rx.toFixed(3)}deg) rotateY(${kb.ry.toFixed(3)}deg) scale(${kb.sc.toFixed(4)})`;
+    /* shade the faces that turn away from the camera (cheap fake lighting) */
+    const cx = Math.cos((kb.rx * Math.PI) / 180),
+      sx = Math.sin((kb.rx * Math.PI) / 180),
+      cy = Math.cos((kb.ry * Math.PI) / 180),
+      sy = Math.sin((kb.ry * Math.PI) / 180);
+    for (const sh of kbShade) {
+      const [nx, ny, nz] = sh.n,
+        x1 = nx * cy + nz * sy,
+        z1 = -nx * sy + nz * cy,
+        z2 = ny * sx + z1 * cx,
+        o = ((1 - cl(z2, 0, 1)) * 0.5).toFixed(2);
+      if (o !== sh.o) {
+        sh.o = o;
+        sh.el.style.opacity = o;
+      }
+    }
+  }
+
+  /* =====================================================================================
+     01-06 problems: a cutting torch burns through each problem in turn, throwing sparks.
+     The line, the heat front inside the letters and the torch all follow the scroll; the sparks
+     are thrown by how far the torch moves (so fast scrolling = more sparks).
+     ===================================================================================== */
+  const wy = $("#wy"),
+    wyCv = $("#wyc"),
+    wyCx = wyCv.getContext("2d"),
+    wyN = $("#wyn"),
+    wyBig = $("#wybig");
+  let wyTop = 0,
+    wyH = 1,
+    wyRows = [],
+    wyGeo = [],
+    wyW = 0,
+    wyHt = 0,
+    wyDpr = 1,
+    wyLast = 0,
+    wyLbl = "";
+  const sparks = [],
+    torch = { x: 0, y: 0, pow: 0, init: false };
+  function wyLayout() {
+    wyRows = $$("#why .pr").map((el) => ({ el, ln: el.querySelector(".pr-ln"), h: el.querySelector(".pr-h"), st: "", f: -1 }));
+    wyW = wyCv.offsetWidth;
+    wyHt = wyCv.offsetHeight;
+    torch.init = false;
+    sparks.length = 0;
+    if (!wyW || !wyHt) return;
+    wyDpr = q === 0 ? Math.min(1.5, devicePixelRatio || 1) : 1;
+    wyCv.width = Math.round(wyW * wyDpr);
+    wyCv.height = Math.round(wyHt * wyDpr);
+    /* where each title is, relative to the stage (both move together while pinned, so scroll does not matter) */
+    const st = wyCv.parentElement.getBoundingClientRect();
+    wyGeo = wyRows.map((r) => {
+      const b = r.h.getBoundingClientRect();
+      return { x0: b.left - st.left - 6, w: b.width + 12, y: b.top - st.top + b.height * 0.54 };
+    });
+  }
+  function wyDraw(t, p) {
+    const N = wyRows.length;
+    if (!N || !wyW) return;
+    const dt = Math.min(0.05, (t - wyLast) / 1000 || 0.016);
+    wyLast = t;
+    const gp = cl(p / 0.94, 0, 1) * N,
+      done = gp >= N - 0.0001,
+      cur = done ? N - 1 : Math.min(N - 1, Math.floor(gp)),
+      f = done ? 1 : cl((gp - cur) / 0.82, 0, 1); /* the torch crosses the title in the first 82% of the row's scroll, then rests */
+    for (let i = 0; i < N; i++) {
+      const r = wyRows[i],
+        st = i < cur || (i === cur && done) ? "done" : i === cur ? "burn" : "up",
+        fi = st === "done" ? 1 : st === "burn" ? f : 0;
+      if (r.st !== st) {
+        r.st = st;
+        r.el.className = "pr " + st;
+      }
+      if (fi !== r.f) {
+        r.f = fi;
+        r.ln.style.transform = `scaleX(${fi.toFixed(4)})`;
+        r.h.style.setProperty("--f", fi.toFixed(4));
+      }
+    }
+    const lbl = done ? `ALL ${p2(N)} CROSSED OFF — THIS IS WHY WE EXIST` : `PROBLEM ${p2(cur + 1)} / ${p2(N)}`;
+    if (lbl !== wyLbl) {
+      wyLbl = lbl;
+      wyN.textContent = lbl;
+      wyBig.textContent = p2(cur + 1);
+      wyBig.classList.toggle("done", done);
+    }
+    /* the torch glides to the burning point (so it swoops down to the next row), and throws sparks as it moves */
+    const geo = wyGeo[cur];
+    if (!geo) return;
+    const tx = geo.x0 + geo.w * f,
+      ty = geo.y;
+    if (!torch.init) {
+      torch.x = tx;
+      torch.y = ty;
+      torch.init = true;
+    }
+    const ox = torch.x,
+      oy = torch.y;
+    torch.x += (tx - torch.x) * 0.4;
+    torch.y += (ty - torch.y) * 0.4;
+    const dist = Math.hypot(torch.x - ox, torch.y - oy),
+      burning = !done && f < 1 && p > 0.002;
+    torch.pow += ((burning ? 1 : 0) - torch.pow) * Math.min(1, dt * 10);
+    const g = wyCx;
+    g.setTransform(wyDpr, 0, 0, wyDpr, 0, 0);
+    g.clearRect(0, 0, wyW, wyHt);
+    if (q < 2) {
+      const cap = q === 0 ? 170 : 90;
+      if (torch.pow > 0.2) {
+        const n = Math.min(10, Math.floor(dist / 4) + (Math.random() < 0.5 ? 1 : 0));
+        for (let k = 0; k < n && sparks.length < cap; k++)
+          sparks.push({
+            x: torch.x,
+            y: torch.y,
+            vx: (Math.random() - 0.3) * 380,
+            vy: -Math.random() * 300 + 40,
+            life: 0,
+            max: 0.5 + Math.random() * 0.7,
+          });
+      }
+      g.globalCompositeOperation = "lighter";
+      g.lineCap = "round";
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.life += dt;
+        if (s.life >= s.max) {
+          sparks.splice(i, 1);
+          continue;
+        }
+        s.vy += 1000 * dt;
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        const k = s.life / s.max;
+        g.strokeStyle = `rgba(255,${Math.round(255 - 150 * k)},${Math.round(220 - 200 * k)},${1 - k})`;
+        g.lineWidth = 1.7 * (1 - k * 0.5);
+        g.beginPath();
+        g.moveTo(s.x - s.vx * 0.035, s.y - s.vy * 0.035);
+        g.lineTo(s.x, s.y);
+        g.stroke();
+      }
+      if (torch.pow > 0.02) {
+        const R = 46 * torch.pow,
+          tg = g.createRadialGradient(torch.x, torch.y, 0, torch.x, torch.y, R);
+        tg.addColorStop(0, `rgba(255,240,225,${0.95 * torch.pow})`);
+        tg.addColorStop(0.3, `rgba(255,120,60,${0.55 * torch.pow})`);
+        tg.addColorStop(1, "rgba(255,77,46,0)");
+        g.fillStyle = tg;
+        g.beginPath();
+        g.arc(torch.x, torch.y, R, 0, 6.2832);
+        g.fill();
+      }
+      g.globalCompositeOperation = "source-over";
+    }
+  }
   function measure() {
     const sc = scrollY;
+    pinOn = !matchMedia("(max-width: 800px), (max-height: 640px)").matches;
+    ms.style.height = 100 + Math.max(1, $$("#mis .card").length) * 50 + 20 + "vh"; /* ~50vh of scroll per mission */
+    wy.style.height = 100 + Math.max(1, $$("#why .pr").length) * 50 + 20 + "vh"; /* ~50vh of scroll per problem */
+    msLayout();
+    wyLayout();
     hw.style.height = 100 + Math.max(1, steps.length) * 80 + 20 + "vh"; /* ~80vh of scroll per stage + a short hold at the end */
     cyLayout(); /* first: it changes the page height, which every measurement below depends on */
     cyTop = cyl.getBoundingClientRect().top + sc;
     cyH = cyl.offsetHeight;
     hwTop = hw.getBoundingClientRect().top + sc;
     hwH = hw.offsetHeight;
+    msTop = ms.getBoundingClientRect().top + sc;
+    msH = ms.offsetHeight;
+    wyTop = wy.getBoundingClientRect().top + sc;
+    wyH = wy.offsetHeight;
     mtTop = mt.getBoundingClientRect().top + sc;
     mtH = mt.offsetHeight;
     hzTop = hz.getBoundingClientRect().top + sc;
@@ -1606,6 +1931,8 @@ function flickerAt(ms) {
       if (cyP.length && (full || (sy > cyTop - innerHeight * 1.2 && sy < cyTop + cyH + innerHeight * 0.2)))
         cylinder(prog(cyTop, cyH, sy), full);
       if (full || (sy > hwTop - innerHeight * 1.2 && sy < hwTop + hwH + innerHeight * 0.2)) stages(prog(hwTop, hwH, sy), full);
+      if (pinOn && sy > msTop - innerHeight && sy < msTop + msH + innerHeight * 0.2) msDraw(t, prog(msTop, msH, sy));
+      if (pinOn && sy > wyTop - innerHeight && sy < wyTop + wyH + innerHeight * 0.2) wyDraw(t, prog(wyTop, wyH, sy));
       if (q < 2)
         for (let i = 0; i < pxs.length; i++) {
           const vc = h2C[i] - scrollY - innerHeight / 2;
