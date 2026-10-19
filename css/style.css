@@ -15,6 +15,18 @@
   margin: 0;
   padding: 0;
 }
+/* shown until Inter has loaded: Arial, resized to Inter's proportions, so the layout does not shift when the real font swaps in */
+@font-face {
+  font-family: "Inter Fallback";
+  src:
+    local("Arial"),
+    local("Helvetica Neue"),
+    local("Helvetica");
+  size-adjust: 107.4%;
+  ascent-override: 90.2%;
+  descent-override: 22.5%;
+  line-gap-override: 0%;
+}
 html {
   scroll-behavior: auto;
   height: 100%;
@@ -24,7 +36,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font:
-    400 16px/1.6 Inter,
+    400 16px/1.6 Inter, "Inter Fallback",
     system-ui,
     sans-serif;
   overflow-x: hidden;
@@ -2398,7 +2410,7 @@ h2 {
   width: 100%;
   border: 0;
   font:
-    600 16px Inter,
+    600 16px Inter, "Inter Fallback",
     sans-serif;
   margin-top: 10px;
 }
@@ -2459,7 +2471,7 @@ h2 {
 .pstat b {
   color: var(--ac);
   font:
-    900 34px Inter,
+    900 34px Inter, "Inter Fallback",
     sans-serif;
   letter-spacing: -0.04em;
   margin-right: 10px;
@@ -2532,7 +2544,7 @@ h2 {
   border: 2px solid #fff;
   background: var(--ac);
   color: #fff;
-  font: 700 26px/1 Inter, sans-serif;
+  font: 700 26px/1 Inter, "Inter Fallback", sans-serif;
   cursor: pointer;
   box-shadow:
     0 0 0 5px rgba(0, 0, 0, 0.75),
@@ -2748,7 +2760,7 @@ h2 {
   color: var(--ac);
   padding: 5px 16px;
   font:
-    900 17px Inter,
+    900 17px Inter, "Inter Fallback",
     sans-serif;
   letter-spacing: 0.22em;
   border-radius: 6px;
@@ -3016,4 +3028,36 @@ html.replay .cur {
   body {
     overflow-x: clip;
   }
+}
+
+/* accessibility: skip link, and a clear focus ring for keyboard users */
+.skip {
+  position: fixed;
+  left: 12px;
+  top: -64px;
+  z-index: 100000;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--ac);
+  color: #000;
+  font:
+    600 14px/1 Inter,
+    "Inter Fallback",
+    sans-serif;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip:focus {
+  top: 12px;
+  outline: 2px solid #fff;
+}
+main:focus {
+  outline: none;
+}
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 3px;
 }

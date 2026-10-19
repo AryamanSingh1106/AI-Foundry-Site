@@ -132,3 +132,10 @@ git commit -m "Add projects, photos, join form, footer links"
 git push
 ```
 Robocopy exit codes 0-7 mean success. Only add `/MIR` if you want files you removed from the package to be deleted in the repo too, and then ALWAYS keep `/XD .git`.
+
+## Going live: link previews, headers and fonts
+- **Link previews / search:** `index.html` has a description, Open Graph + Twitter tags, a canonical link, icons (`assets/icons/`), a web manifest, and Organization data for search engines. They assume the site lives at **https://ai-foundry.in/**; if the address differs, search for `ai-foundry.in` in `index.html`, `robots.txt` and `sitemap.xml` and change it. The preview picture is `assets/og-image.jpg` (1200x630); replace it any time. After deploying, paste the link into https://www.opengraph.xyz to check the preview. Social apps cache previews, so a new image can take a while to show.
+- **Headers (`vercel.json`):** security headers (no-sniff, no-framing, referrer policy, HSTS, permissions policy) and a 7-day cache for `/assets`. If you host somewhere other than Vercel, copy the same headers into that host's settings (`_headers` on Netlify / Cloudflare Pages).
+- **Content-Security-Policy:** shipped as **Report-Only**, so it can never break the site; it only logs would-be blocks in the browser console (F12). After deploying, open the live site, browse around, and check the console for "Content Security Policy" messages. If there are none, rename the header in `vercel.json` from `Content-Security-Policy-Report-Only` to `Content-Security-Policy` to enforce it. If you move the backend or add a new CDN, add its address to the policy.
+- **Fonts:** they load without blocking the first paint, with a size-matched fallback so nothing jumps. To host them yourself, run `python3 tools/self-host-fonts.py` once (needs internet) and follow what it prints.
+- **Accessibility:** a "Skip to content" link (press Tab on page load), a `<main>` landmark, a labelled nav, and a visible keyboard focus ring.

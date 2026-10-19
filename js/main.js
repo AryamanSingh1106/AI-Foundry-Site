@@ -131,6 +131,15 @@ function flickerAt(ms) {
   /* All content (data.js or the database) is treated as plain text: escH() makes it safe to place inside HTML.
      U() does the same for links and image addresses, and also drops anything that is not http(s)/mailto/relative
      (for example javascript:), so edited content can never run code on the page. */
+  /* a member photo that fails to load is removed, so the initial letter underneath shows (a delegated listener, not an inline onerror) */
+  document.addEventListener(
+    "error",
+    (e) => {
+      const t = e.target;
+      if (t && t.tagName === "IMG" && t.closest(".cy-ph")) t.remove();
+    },
+    true,
+  );
   const escH = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const safeUrl = (u) => {
@@ -179,7 +188,7 @@ function flickerAt(ms) {
       .map(([m, i, dup]) => {
         const name = String(m.name || "Member").trim() || "Member";
         const no = String(i + 1).padStart(2, "0");
-        return `<div class="cy-p" style="--h:${8 + ((i * 7) % 26)}" data-nm="${escH(name)}" data-i="${i}" data-t="${MEMBERS.length}"${dup ? ' aria-hidden="true"' : ""}><i class="cy-slot"></i><div class="cy-ph"><span class="cy-in">${escH([...name][0].toUpperCase())}</span>${m.photo ? `<img src="${U(m.photo)}" alt="${escH(name)}" loading="lazy" decoding="async" onerror="this.remove()">` : ""}<small class="mono cy-ix">${no}</small><em class="mono cy-mk">AF</em></div><div class="cy-tx"><b>${escH(name)}</b><span class="mono">${escH(m.role || "Member")}</span></div></div>`;
+        return `<div class="cy-p" style="--h:${8 + ((i * 7) % 26)}" data-nm="${escH(name)}" data-i="${i}" data-t="${MEMBERS.length}"${dup ? ' aria-hidden="true"' : ""}><i class="cy-slot"></i><div class="cy-ph"><span class="cy-in">${escH([...name][0].toUpperCase())}</span>${m.photo ? `<img src="${U(m.photo)}" alt="${escH(name)}" loading="lazy" decoding="async">` : ""}<small class="mono cy-ix">${no}</small><em class="mono cy-mk">AF</em></div><div class="cy-tx"><b>${escH(name)}</b><span class="mono">${escH(m.role || "Member")}</span></div></div>`;
       })
       .join("");
     $("#lead").innerHTML = LEADERS.map(
