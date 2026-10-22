@@ -129,7 +129,22 @@
         ><a href="#team">Team</a><a href="#members">Members</a
         ><a href="#about">About</a><a href="#join" class="ac">Join ↗</a>
       </div>
+      <button class="mm-btn" id="mmbtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mm"><i></i><i></i></button>
     </nav>
+    <!-- phone menu: a full-screen sheet (the desktop links are hidden on phones) -->
+    <div id="mm" class="mm" role="dialog" aria-modal="true" aria-label="Menu" aria-hidden="true">
+      <div class="mm-in">
+        <a href="#events" style="--i: 0"><em class="mono">01</em>Events</a>
+        <a href="#projects" style="--i: 1"><em class="mono">02</em>Projects</a>
+        <a href="#collab" style="--i: 2"><em class="mono">03</em>Collabs</a>
+        <a href="#patron" style="--i: 3"><em class="mono">04</em>Patron</a>
+        <a href="#team" style="--i: 4"><em class="mono">05</em>Team</a>
+        <a href="#members" style="--i: 5"><em class="mono">06</em>Members</a>
+        <a href="#about" style="--i: 6"><em class="mono">07</em>About</a>
+        <a href="#join" class="mm-cta" style="--i: 7">Join AI Foundry <span>→</span></a>
+        <p class="mm-foot mono">AIFOUNDRY@universalai.in<br />Universal AI University</p>
+      </div>
+    </div>
 
     <main id="main" tabindex="-1">
     <noscript>
@@ -177,6 +192,13 @@
       </div>
 
       <h1 class="sr">AI Foundry</h1>
+      <div class="hero-ph">
+        <p class="hero-tag">Ideas for a <span class="ac">brighter</span> tomorrow.</p>
+        <div class="hero-cta">
+          <a class="hc-main" href="#join">Join AI Foundry <span>→</span></a>
+          <a class="hc-ghost" href="#what">What we build <span>↓</span></a>
+        </div>
+      </div>
       <div class="hero-meta mono">
         <span>Discover · Build · Innovate · <b>Impact</b></span
         ><span>Ideas for a brighter tomorrow</span><span>↓ Scroll</span>

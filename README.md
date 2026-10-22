@@ -139,3 +139,13 @@ Robocopy exit codes 0-7 mean success. Only add `/MIR` if you want files you remo
 - **Content-Security-Policy:** shipped as **Report-Only**, so it can never break the site; it only logs would-be blocks in the browser console (F12). After deploying, open the live site, browse around, and check the console for "Content Security Policy" messages. If there are none, rename the header in `vercel.json` from `Content-Security-Policy-Report-Only` to `Content-Security-Policy` to enforce it. If you move the backend or add a new CDN, add its address to the policy.
 - **Fonts:** they load without blocking the first paint, with a size-matched fallback so nothing jumps. To host them yourself, run `python3 tools/self-host-fonts.py` once (needs internet) and follow what it prints.
 - **Accessibility:** a "Skip to content" link (press Tab on page load), a `<main>` landmark, a labelled nav, and a visible keyboard focus ring.
+
+## Phone version (screens up to 800px wide)
+Phones get their own, lighter experience (all in the "PHONE REVAMP" part of `css/style.css`, plus small bits in `js/main.js`; desktop is untouched):
+- a solid top bar with a hamburger menu (full-screen sheet, Esc / tap-outside-free: tap a link or the X to close);
+- a hero built for tall screens (stretched particle wordmark, a real tagline and two buttons), with a particle budget;
+- "Inside the Foundry" keeps the card deck; "How we work" becomes a vertical timeline that fills as you scroll;
+- missions become cards that stack like paper (CSS `position: sticky`); problems burn a line through each title as it reaches the middle of the screen;
+- team is a 2-column grid, collabs/footer no longer run off the screen, and the film-grain overlay and nav blend mode are off for speed.
+Without a mouse, nothing pushes the hero particles around any more (the screen centre used to act as a permanent pointer).
+

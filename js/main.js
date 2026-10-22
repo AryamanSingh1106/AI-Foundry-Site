@@ -150,7 +150,7 @@ function flickerAt(ms) {
   const U = (u) => escH(safeUrl(u));
   const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
   const card = (n, t, p, i) =>
-    `<div class="card"><span class="num">${escH(n)}</span><h3>${escH(t)}</h3><p>${escH(p)}</p></div>`;
+    `<div class="card" style="--si:${i}"><span class="num">${escH(n)}</span><h3>${escH(t)}</h3><p>${escH(p)}</p></div>`;
   $("#why").innerHTML = WHY.map(
     (w, i) =>
       `<li class="pr up"><span class="pr-n mono">${String(i + 1).padStart(2, "0")}</span><div class="pr-b"><div class="pr-h"><span class="pr-t">${escH(w.title)}</span><i class="pr-ln"></i></div><p>${escH(w.text)}</p></div></li>`,
@@ -278,6 +278,32 @@ function flickerAt(ms) {
       }),
   );
   $("#jx").onclick = closeJ;
+  const reduceMotionMQ = matchMedia("(prefers-reduced-motion: reduce)");
+  /* ===== phone menu ===== */
+  const mmBtn = $("#mmbtn"),
+    mm = $("#mm"),
+    phoneMQ = matchMedia("(max-width: 800px)");
+  const setMenu = (open) => {
+    document.documentElement.classList.toggle("mm-open", open);
+    mmBtn.setAttribute("aria-expanded", open);
+    mmBtn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    mm.setAttribute("aria-hidden", !open);
+  };
+  mmBtn.addEventListener("click", () => setMenu(!document.documentElement.classList.contains("mm-open")));
+  mm.addEventListener("click", (e) => {
+    const a = e.target.closest("a");
+    if (!a) return;
+    setMenu(false);
+    const href = a.getAttribute("href");
+    if (href === "#join") return; /* the join handler opens the form */
+    e.preventDefault();
+    const t = $(href);
+    if (t) setTimeout(() => t.scrollIntoView({ behavior: reduceMotionMQ.matches ? "auto" : "smooth", block: "start" }), 120);
+  });
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setMenu(false);
+  });
+  phoneMQ.addEventListener("change", () => setMenu(false));
   addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeJ();
   });
@@ -1019,7 +1045,21 @@ function flickerAt(ms) {
     cx = mx,
     cy = my,
     pmoved = false,
+    touchOn = false, /* a finger is on the screen (phones have no cursor: without this the screen centre acted as a permanent pointer) */
     ptarget = null;
+  addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.pointerType !== "touch") return;
+      touchOn = true;
+      mx = e.clientX;
+      my = e.clientY;
+      pmoved = true;
+    },
+    { passive: true },
+  );
+  addEventListener("pointerup", () => (touchOn = false), { passive: true });
+  addEventListener("pointercancel", () => (touchOn = false), { passive: true });
   addEventListener(
     "pointermove",
     (e) => {
@@ -1088,39 +1128,50 @@ function flickerAt(ms) {
       fs *= (W * 0.88) / (w + fs * 0.17);
       F(fs);
     }
-    const x0 = W * 0.06,
-      b2 = H * 0.8,
-      b1 = b2 - fs * 0.84;
+    /* phones: a tall screen, so the wordmark is stretched vertically (bold poster type), "AI" is bigger than "FOUNDRY",
+       and the whole thing sits in the middle with the tagline and buttons (real text) underneath */
+    const phone = innerWidth <= 800,
+      ys = phone ? 2 : 1,
+      x0 = W * 0.06,
+      b2 = phone ? H - Math.min(300, H * 0.36) : H * 0.8,
+      fsAI = phone ? fs * 1.55 : fs,
+      b1 = phone ? b2 - fs * 0.73 * ys - 14 : b2 - fs * 0.84;
     c.fillStyle = "#fff";
     [
-      ["AI", b1],
-      ["FOUNDRY", b2],
-    ].forEach(([s, y]) => {
-      c.setTransform(1, 0, -0.22, 1, x0, y);
+      ["AI", b1, fsAI],
+      ["FOUNDRY", b2, fs],
+    ].forEach(([s, y, f]) => {
+      F(f);
+      c.setTransform(1, 0, -0.22 * ys, ys, x0, y);
       c.fillText(s, 0, 0);
     });
     c.setTransform(1, 0, 0, 1, 0, 0);
     /* whole pixels only (a fractional step breaks the pixel lookup); coarser grid on lighter tiers */
     stp = Math.round(Math.max(3 * dpr, fs / 46) * [1, 1.25, 1.6][q]);
-    const d = c.getImageData(0, 0, W, H).data;
-    D = [];
-    for (let y = 0; y < H; y += stp)
-      for (let x = 0; x < W; x += stp)
-        if (d[(y * W + x) * 4 + 3] > 128) {
-          const sx = Math.random() * W,
-            sy2 = H * 1.1 + Math.random() * H * 0.6;
-          D.push({
-            tx: x,
-            ty: y,
-            x: started ? x : sx,
-            y: started ? y : sy2,
-            vx: 0,
-            vy: 0,
-            z: 0.3 + Math.random() * 0.9,
-            dl: (x / W) * 700 + Math.random() * 500,
-            w: Math.random() < 0.1,
-          });
-        }
+    const d = c.getImageData(0, 0, W, H).data,
+      cap = phone ? 1500 : 1e9; /* a particle budget on phones: the grid gets coarser until the count fits */
+    for (let tries = 0; ; tries++) {
+      D = [];
+      for (let y = 0; y < H; y += stp)
+        for (let x = 0; x < W; x += stp)
+          if (d[(y * W + x) * 4 + 3] > 128) {
+            const sx = Math.random() * W,
+              sy2 = H * 1.1 + Math.random() * H * 0.6;
+            D.push({
+              tx: x,
+              ty: y,
+              x: started ? x : sx,
+              y: started ? y : sy2,
+              vx: 0,
+              vy: 0,
+              z: 0.3 + Math.random() * 0.9,
+              dl: (x / W) * 700 + Math.random() * 500,
+              w: Math.random() < 0.1,
+            });
+          }
+      if (D.length <= cap || tries > 5) break;
+      stp += 1;
+    }
   }
   size();
   fontsReady.then(() => size(true));
@@ -1138,8 +1189,9 @@ function flickerAt(ms) {
     g.globalCompositeOperation = "source-over";
     g.clearRect(0, 0, W, H);
     g.globalCompositeOperation = q === 0 ? "lighter" : "source-over";
-    const lx = (mx - cvL) * dpr,
-      ly = (my - (cvT - scrollY)) * dpr;
+    const noPtr = coarse && !touchOn, /* phone with no finger down: nothing should push the particles */
+      lx = noPtr ? -9999 : (mx - cvL) * dpr,
+      ly = noPtr ? -9999 : (my - (cvT - scrollY)) * dpr;
     /* ambient embers: sorted into 4 opacity levels -> 4 fills instead of one fill per ember */
     for (let i = 0; i < 4; i++) AB[i].length = 0;
     for (const p of P) {
@@ -1314,6 +1366,7 @@ function flickerAt(ms) {
     if (!force && w === lastHw) return;
     lastHw = w;
     fill.style.transform = `scaleX(${w.toFixed(4)})`;
+    fill.style.setProperty("--pf", w.toFixed(4)); /* the phone layout fills this timeline downwards instead */
     const cur = Math.min(N - 1, Math.floor(w * N + 0.0001));
     steps.forEach((s, i) => {
       s.classList.toggle("on", i <= cur);
@@ -1772,6 +1825,47 @@ function flickerAt(ms) {
       g.globalCompositeOperation = "source-over";
     }
   }
+  /* =====================================================================================
+     Phone-only behaviours (the pinned desktop scenes are switched off on phones, so these replace them):
+     - missions: cards stack like paper as you scroll (CSS sticky); the one being covered shrinks a little
+     - problems: each row's line burns across its title when the row reaches the middle of the screen
+     ===================================================================================== */
+  let phCards = [],
+    phK = [],
+    phTop = 0,
+    phH = 1,
+    phIO = null;
+  function phoneSetup() {
+    phCards = $$("#mis .card");
+    phK = [];
+    if (phIO) phIO.disconnect();
+    phIO = null;
+    if (!phoneMQ.matches) return;
+    const rows = $$("#why .pr");
+    phIO = new IntersectionObserver(
+      (es) => {
+        for (const e of es)
+          if (e.isIntersecting) {
+            const i = rows.indexOf(e.target);
+            rows.slice(0, i + 1).forEach((r) => r.classList.add("hit")); /* earlier rows too, if you jumped past them */
+          }
+      },
+      { rootMargin: "-46% 0px -46% 0px" },
+    );
+    rows.forEach((r) => phIO.observe(r));
+  }
+  function phoneStack() {
+    const n = phCards.length;
+    if (n < 2) return;
+    const tops = phCards.map((c) => c.getBoundingClientRect().top); /* all reads first, then writes */
+    for (let i = 0; i < n - 1; i++) {
+      const k = cl((70 + i * 12 + 300 - tops[i + 1]) / 300, 0, 1).toFixed(2); /* how far the next card has slid over this one */
+      if (k !== phK[i]) {
+        phK[i] = k;
+        phCards[i].style.setProperty("--k", k);
+      }
+    }
+  }
   function measure() {
     const sc = scrollY;
     pinOn = !matchMedia("(max-width: 800px), (max-height: 640px)").matches;
@@ -1779,6 +1873,7 @@ function flickerAt(ms) {
     wy.style.height = 100 + Math.max(1, $$("#why .pr").length) * 50 + 20 + "vh"; /* ~50vh of scroll per problem */
     msLayout();
     wyLayout();
+    phoneSetup();
     hw.style.height = 100 + Math.max(1, steps.length) * 80 + 20 + "vh"; /* ~80vh of scroll per stage + a short hold at the end */
     cyLayout(); /* first: it changes the page height, which every measurement below depends on */
     cyTop = cyl.getBoundingClientRect().top + sc;
@@ -1787,6 +1882,9 @@ function flickerAt(ms) {
     hwH = hw.offsetHeight;
     msTop = ms.getBoundingClientRect().top + sc;
     msH = ms.offsetHeight;
+    const phm = $("#mis").getBoundingClientRect();
+    phTop = phm.top + sc;
+    phH = phm.height;
     wyTop = wy.getBoundingClientRect().top + sc;
     wyH = wy.offsetHeight;
     mtTop = mt.getBoundingClientRect().top + sc;
@@ -2008,7 +2106,7 @@ function flickerAt(ms) {
       const u = cl(x - i, 0, 1); /* 0 = on the deck, 1 = gone */
       const depth = Math.min(3, Math.max(0, i - x)); /* how far behind the front card */
       const dir = i % 2 ? 1 : -1;
-      el.style.visibility = u >= 0.99 ? "hidden" : "visible";
+      el.style.visibility = u >= 0.99 || i - x > 4.5 ? "hidden" : "visible"; /* gone, or buried too deep to see: one less layer to draw */
       el.style.zIndex = N - i;
       el.style.transform =
         `translate(calc(-50% + ${(dir * u * u * 115).toFixed(2)}vw), calc(-50% + ${(4 - u * 7 + u * u * 34 - depth * 3.2).toFixed(2)}vh)) ` +
@@ -2112,6 +2210,7 @@ function flickerAt(ms) {
        So they run every frame while in view, not only when the scroll position changes. */
     if (pinOn && sy > msTop - innerHeight && sy < msTop + msH + innerHeight * 0.2) msDraw(t, prog(msTop, msH, sy));
     if (pinOn && sy > wyTop - innerHeight && sy < wyTop + wyH + innerHeight * 0.2) wyDraw(t, prog(wyTop, wyH, sy));
+    if (phoneMQ.matches && sy > phTop - innerHeight && sy < phTop + phH) phoneStack();
     /* marquee skew follows scroll speed; only touch the DOM when the angle actually changes */
     vs += (sy - psy - vs) * 0.12;
     psy = sy;
